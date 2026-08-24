@@ -155,7 +155,7 @@ async def sentiment_from_sources(
             pass
         
         # Return simulated data for now
-        return await simulate_sentiment_from_sources(symbols, sources, window_minutes)
+        return simulate_sentiment_from_sources(symbols, sources, window_minutes)
         
     except Exception as e:
         logger.error(f"Sentiment analysis error: {e}")
@@ -238,7 +238,7 @@ async def aggregate_sentiment_endpoint(
             "symbols": symbols,
             "sources_used": available_sources,
             "window_minutes": window_minutes,
-            "cost_usd": float(settings.sentiment_analysis_price),
+            "cost_usd": settings.sentiment_analysis_price_usd,
             "timestamp": datetime.utcnow().isoformat(),
         }
         

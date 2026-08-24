@@ -68,8 +68,8 @@ app.add_middleware(
 commerce_layer = CommerceLayer(settings)
 x402_services = X402Services(settings)
 
-# Include MCP server
-app.include_router(mcp_app, prefix="/mcp")
+# Mount FastMCP server
+mcp_app.mount(app)
 
 
 @app.get("/")
@@ -224,9 +224,10 @@ async def get_quota(agent_id: str):
     return {
         "agent_id": agent_id,
         "tier": quota.tier,
+        "remaining": quota.remaining,
         "remaining_calls": quota.remaining,
         "limit": quota.limit,
-        "rate_limit_per_min": quota.rate_limit,
+        "rate_limit_per_min": quota.rate_limit_per_min,
         "reset_at": quota.reset_at.isoformat() if quota.reset_at else None,
     }
 
@@ -236,13 +237,13 @@ async def get_stats():
     """Live usage statistics."""
     stats = commerce_layer.get_stats()
     return {
-        "total_agents": stats.total_agents,
-        "free_tier_active": stats.free_active,
-        "pro_tier_active": stats.pro_active,
-        "tool_credits_sold": stats.tool_credits_sold,
-        "revenue_today_usd": stats.revenue_today,
-        "calls_today": stats.calls_today,
-        "avg_latency_ms": stats.avg_latency_ms,
+        "total_agents": stats.get("total_agents", 0),
+        "free_tier_active": stats.get("free_active", 0),
+        "pro_tier_active": stats.get("pro_active", 0),
+        "tool_credits_sold": stats.get("tool_credits_sold", 0),
+        "revenue_today_usd": stats.get("revenue_today_usd", 0.0),
+        "calls_today": stats.get("calls_today", 0),
+        "avg_latency_ms": stats.get("avg_latency_ms", 0.0),
     }
 
 
@@ -289,7 +290,7 @@ async def us_rental_diligence(
 # ============================================================================
 
 @app.get("/ledger/{name}")
-async def get_ledger(name: str = Query(..., description="spend or revenue")):
+async def get_ledger(name: str):
     """Get ledger entries (git-ignored jsonl files)."""
     if name not in ["spend", "revenue"]:
         raise HTTPException(status_code=400, detail="name must be 'spend' or 'revenue'")
