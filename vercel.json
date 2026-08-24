@@ -3,10 +3,32 @@
   "framework": null,
   "buildCommand": "cd dashboard && pnpm install && pnpm run build",
   "outputDirectory": "dashboard/dist",
+  "installCommand": "pip install -r requirements.txt",
+  "devCommand": "uvicorn app.main:app --host 0.0.0.0 --port 8403",
   "rewrites": [
+    {
+      "source": "/api/mcp/(.*)",
+      "destination": "/api/mcp/\\$1"
+    },
     {
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "headers": [
+    {
+      "source": "/api/mcp/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+      ]
+    }
+  ],
+  "env": {
+    "X402_PAY_TO_ADDRESS": "@x402-pay-to-address",
+    "FREE_TIER_MONTHLY_QUOTA": "500",
+    "PRO_TIER_MONTHLY_QUOTA": "50000",
+    "KEY_PROVIDER": "env"
+  }
 }

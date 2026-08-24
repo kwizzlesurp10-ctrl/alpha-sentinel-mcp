@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "*.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dashboard/dist"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/mcp/(.*)",
+      "dest": "/api/mcp/\\$1"
+    },
+    {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/dashboard/dist/$1"
+    }
+  ]
+}
