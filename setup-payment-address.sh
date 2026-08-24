@@ -1,0 +1,75 @@
+#!/bin/bash
+# X402 Payment Address Setup Guide
+# Run this after creating your receiving wallet
+
+echo "🔐 Step 1: Create Your Receiving Wallet"
+echo "========================================="
+echo ""
+echo "CHOOSE ONE OPTION:"
+echo ""
+echo "Option A: Coinbase Developer Platform (RECOMMENDED)"
+echo "--------------------------------------------------"
+echo "1. Go to https://portal.cdp.coinbase.com/"
+echo "2. Login/Sign up"
+echo "3. Create API Key with 'x402' permissions"
+echo "4. Navigate to Accounts → Base Network"
+echo "5. Click 'Create New Account'"
+echo "6. Copy the deposit address (starts with 0x...)"
+echo ""
+echo "Option B: MetaMask Quick Setup"
+echo "-------------------------------"
+echo "1. Install MetaMask browser extension"
+echo "2. Switch network to BASE"
+echo "3. Create new account (name it 'x402-receive')"
+echo "4. Share that address with Vercel environment"
+echo "5. ⚠️ NEVER mix trading & receiving wallets!"
+echo ""
+echo "Option C: Existing Wallet"
+echo "--------------------------"
+echo "If you already have a Base wallet:"
+echo "- Open your wallet app"
+echo "- Find receive address for BASE network"
+echo "- Copy and paste below"
+echo ""
+
+read -p "Press Enter when you have your address..."
+
+echo ""
+echo "📝 Step 2: Configure Environment Variable"
+echo "==========================================="
+echo ""
+echo "Your generated OPERATOR_TOKEN is:"
+echo "  opr_9e9180aed92e570c8a7d00064eea28dba978c45c880629322dfaeda8bdac2d49"
+echo ""
+echo "Paste your RECEIVING ADDRESS below:"
+read -r RECEIVE_ADDRESS
+echo ""
+
+if [[ $RECEIVE_ADDRESS =~ ^0x[a-fA-F0-9]{40}$ ]]; then
+    echo "✅ Valid Ethereum address format detected!"
+    echo ""
+    echo "🎯 Add to Vercel Dashboard:"
+    echo "   1. Go to https://vercel.com/dashboard"
+    echo "   2. Select alpha-sentinel-mcp project"
+    echo "   3. Go to Settings → Environment Variables"
+    echo "   4. Add:"
+    echo "      KEY=X4402_PAY_TO_ADDRESS"
+    echo "      VALUE=$RECEIVE_ADDRESS"
+    echo "      ENVIRONMENT=Production"
+    echo "      ✓ Lock icon enabled"
+    echo ""
+    
+    echo "Also add:"
+    echo "   KEY=OPERATOR_TOKEN"
+    echo "   VALUE=opr_9e9180aed92e570c8a7d00064eea28dba978c45c880629322dfaeda8bdac2d49"
+    echo "   ENVIRONMENT=Production"
+    echo ""
+    
+    echo "💡 Test your setup after deploying:"
+    echo "curl -X POST \"https://alpha-sentinel-mcp.vercel.app/api/mcp/tools/fetch_price?symbol=btc\" \\"
+    echo "  -H \"Authorization: Bearer opr_9e9180aed92e570c8a7d00064eea28dba978c45c880629322dfaeda8bdac2d49\""
+    
+else
+    echo "❌ Invalid address format! Must be 0x followed by 40 hex characters"
+    echo "Example: 0xAB745e5Fca624dB679B2471f2Bb099E1E29a46209"
+fi
