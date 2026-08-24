@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deploy Alpha Sentinel to Vercel - Step by Step Guide</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #0f172a;
+            color: #f1f5f9;
+            line-height: 1.6;
+        }
+        .step {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border-left: 4px solid #6366f1;
+        }
+        h1 {
+            color: #6366f1;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #10b981;
+        }
+        .btn {
+            display: inline-block;
+            background: #6366f1;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+        .btn:hover {
+            background: #4f46e5;
+        }
+        code {
+            background: #0f172a;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            color: #fbbf24;
+        }
+        pre {
+            background: #0f172a;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            color: #10b981;
+        }
+        .warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 4px solid #f59e0b;
+            padding: 12px;
+            margin: 15px 0;
+        }
+        .success {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 4px solid #10b981;
+            padding: 12px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 Deploy Alpha Sentinel to Vercel</h1>
+    
+    <div class="success">
+        <strong>✅ You're all set!</strong> The code is already on GitHub at:<br>
+        <a href="https://github.com/kwizzlesurp10-ctrl/alpha-sentinel-mcp" style="color: #6366f1;">
+            https://github.com/kwizzlesurp10-ctrl/alpha-sentinel-mcp
+        </a>
+    </div>
+
+    <div class="step">
+        <h2>Step 1: Go to Vercel</h2>
+        <p><a href="https://vercel.com/new" class="btn" target="_blank">👉 Click here to open Vercel</a></p>
+        <p>This will take you to the "Add New Project" page.</p>
+    </div>
+
+    <div class="step">
+        <h2>Step 2: Import Your Repository</h2>
+        <ol>
+            <li>Click <strong>"Import Git Repository"</strong></li>
+            <li>Find or search for: <code>alpha-sentinel-mcp</code></li>
+            <li>You should see it in your repositories list (it was just created)</li>
+            <li>Click <strong>"Import"</strong></li>
+        </ol>
+    </div>
+
+    <div class="step">
+        <h2>Step 3: Configure Deployment Settings</h2>
+        <p><strong>Framework Preset:</strong> Other</p>
+        <p><strong>Root Directory:</strong> <code>/</code> (leave default)</p>
+        <p><strong>Build Command:</strong></p>
+        <pre>pnpm --prefix dashboard install && pnpm --prefix dashboard run build</pre>
+        
+        <p><strong>Output Directory:</strong></p>
+        <pre>dashboard/dist</pre>
+
+        <div class="warning">
+            <strong>Note:</strong> If you don't see these options, Vercel will auto-detect them. Just proceed!
+        </div>
+    </div>
+
+    <div class="step">
+        <h2>Step 4: Environment Variables (Optional)</h2>
+        <p>For the dashboard alone, you typically don't need environment variables. They're auto-detected.</p>
+        
+        <p><strong>If you also deploy backend to Render first:</strong></p>
+        <ul>
+            <li>Add variable: <code>VITE_API_URL</code></li>
+            <li>Value: <code>https://your-api.onrender.com</code></li>
+        </ul>
+    </div>
+
+    <div class="step">
+        <h2>Step 5: Deploy!</h2>
+        <ol>
+            <li>Click <strong>"Deploy"</strong></li>
+            <li>Wait ~30-60 seconds for the build to complete</li>
+            <li>Congratulations! 🎉 Your dashboard is live!</li>
+        </ol>
+        
+        <p>You'll get a URL like: <code>https://alpha-sentinel-mcp.vercel.app</code></p>
+    </div>
+
+    <div class="success">
+        <strong>✨ That's it!</strong> Your Alpha Sentinel Mission Control dashboard is now live.<br>
+        It will automatically proxy API calls to your backend when deployed!
+    </div>
+
+    <hr style="border-color: #334155; margin: 40px 0;">
+
+    <h2>Next Steps After Deploy:</h2>
+    <ol>
+        <li><strong>Test the dashboard:</strong> Visit your new Vercel URL</li>
+        <li><strong>Deploy backend:</strong> Follow DEPLOYMENT.md to set up Render</li>
+        <li><strong>Update README:</strong> Replace placeholder URL with your real one</li>
+        <li><strong>Share the news:</strong> Announce launch on X/Twitter!</li>
+    </ol>
+
+    <div class="step">
+        <h2>Need Help?</h2>
+        <ul>
+            <li>Check <code>VERCEL-DEPLOY.md</code> for more details</li>
+            <li>See <code>DEPLOYMENT.md</code> for backend setup</li>
+            <li>All docs are in: <a href="https://github.com/kwizzlesurp10-ctrl/alpha-sentinel-mcp/tree/main" target="_blank">GitHub repo</a></li>
+        </ul>
+    </div>
+</body>
+</html>
