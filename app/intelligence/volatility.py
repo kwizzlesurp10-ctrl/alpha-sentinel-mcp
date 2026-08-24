@@ -141,7 +141,7 @@ async def analyze_volatility_endpoint(
             "symbol": symbol,
             "window_minutes": window_minutes,
             "threshold_used": z_threshold,
-            "cost_usd": float(settings.volatility_alerts_price),
+            "cost_usd": settings.volatility_alerts_price_usd,
             "timestamp": datetime.utcnow().isoformat(),
         }
         

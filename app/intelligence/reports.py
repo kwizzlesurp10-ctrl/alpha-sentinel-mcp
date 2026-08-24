@@ -111,10 +111,10 @@ async def generate_market_report_endpoint(
         
         # Calculate total cost
         total_cost = (
-            float(settings.price_feed_price) * len(symbols) +
-            float(settings.volatility_alerts_price) * len(symbols) +
-            float(settings.sentiment_analysis_price) * len(symbols) +
-            float(settings.risk_assessment_price) * len(symbols)
+            settings.price_feed_price_usd * len(symbols) +
+            settings.volatility_alerts_price_usd * len(symbols) +
+            settings.sentiment_analysis_price_usd * len(symbols) +
+            settings.risk_assessment_price_usd * len(symbols)
         )
         
         return {
@@ -167,14 +167,18 @@ def generate_executive_summary(
     
     for symbol, data in intelligence.items():
         # Extract key signals
-        price_change = data.get("price", {}).get("data", {}).get("change_24h", 0)
+        p_info = data.get("price", {})
+        p_data = p_info.get("data", p_info) if isinstance(p_info, dict) else {}
+        price_usd = p_data.get("price_usd", 0.0) if isinstance(p_data, dict) else 0.0
+        price_change = p_data.get("change_24h", 0.0) if isinstance(p_data, dict) else 0.0
+
         sentiment_cat = data.get("sentiment", {}).get("data", {}).get("overall", {}).get("sentiment", "neutral")
         risk_level = data.get("risk", {}).get("data", {}).get("individual", {}).get(symbol, {}).get("risk_level", "UNKNOWN")
         alert_level = data.get("volatility", {}).get("data", {}).get("alert_level", "NORMAL")
         
         # Build signal string
         signals = [
-            f"{symbol.upper()} @${data['price']['data']['price_usd']:.2f}",
+            f"{symbol.upper()} @${price_usd:.2f}",
             f"{'▲' if price_change > 0 else '▼'}{abs(price_change):.2f}%",
             f"sentiment={sentiment_cat}",
             f"risk={risk_level}",

@@ -5,7 +5,7 @@ from datetime import datetime
 import logging
 
 from app.config import settings
-from app.intelligence.volatility import calculate_z_score
+from app.intelligence.volatility import calculate_z_score, classify_volatility
 
 logger = logging.getLogger(__name__)
 
@@ -238,7 +238,7 @@ async def calculate_risk_score_endpoint(
             },
             "symbols": symbols,
             "factors_analyzed": include_factors,
-            "cost_usd": float(settings.risk_assessment_price) * len(symbols),
+            "cost_usd": settings.risk_assessment_price_usd * len(symbols),
             "timestamp": datetime.utcnow().isoformat(),
         }
         

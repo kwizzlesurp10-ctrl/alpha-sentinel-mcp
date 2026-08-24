@@ -3,6 +3,13 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def parse_price(val: str | float) -> float:
+    """Helper to parse dollar string or float into a float value."""
+    if isinstance(val, (int, float)):
+        return float(val)
+    return float(str(val).replace("$", "").strip())
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
@@ -31,6 +38,26 @@ class Settings(BaseSettings):
     sentiment_analysis_price: str = "$0.01" # NLP aggregation
     risk_assessment_price: str = "$0.03"   # Multi-factor scoring
     market_report_price: str = "$0.15"     # Comprehensive report
+
+    @property
+    def price_feed_price_usd(self) -> float:
+        return parse_price(self.price_feed_price)
+
+    @property
+    def volatility_alerts_price_usd(self) -> float:
+        return parse_price(self.volatility_alerts_price)
+
+    @property
+    def sentiment_analysis_price_usd(self) -> float:
+        return parse_price(self.sentiment_analysis_price)
+
+    @property
+    def risk_assessment_price_usd(self) -> float:
+        return parse_price(self.risk_assessment_price)
+
+    @property
+    def market_report_price_usd(self) -> float:
+        return parse_price(self.market_report_price)
 
     # Diligence pack (via city compliance integration)
     diligence_pack_price: str = "$1.50"

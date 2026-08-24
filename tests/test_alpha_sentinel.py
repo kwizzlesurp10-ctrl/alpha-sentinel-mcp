@@ -1,15 +1,14 @@
-"""Tests for Alpha Sentinel MCP Server."""
-
 import pytest
-from httpx import AsyncClient
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
 from app.main import app
 from app.config import settings
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def client():
     """Create test client."""
-    async with AsyncClient(app=app, base_url="http://test") as client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         yield client
 
 
@@ -173,13 +172,13 @@ def test_get_tool_spec():
 # ============================================================================
 
 @pytest.mark.asyncio
-async def test_fetch_price_integration(mock_coingecko_api):
+async def test_fetch_price_integration(client, mock_coingecko_api):
     """Test price fetch integration (mocked)."""
-    async with AsyncClient(app=app, base_url="http://test") as client:
-        response = await client.post("/tools/fetch_price?symbol=btc")
-        
-        # Would fail without x402 payment, so test MCP tool instead
-        pass
+    response = await client.post("/tools/fetch_price?symbol=btc")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["data"]["price_usd"] == 67842.50
 
 
 # ============================================================================
@@ -191,7 +190,7 @@ def mock_coingecko_api(monkeypatch):
     """Mock CoinGecko API responses."""
     async def mock_get(*args, **kwargs):
         class MockResponse:
-            async def json(self):
+            def json(self):
                 return {
                     "bitcoin": {
                         "usd": 67842.50,
