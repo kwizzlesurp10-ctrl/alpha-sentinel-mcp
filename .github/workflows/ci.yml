@@ -1,0 +1,155 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio httpx-test
+      
+      - name: Lint with Ruff
+        run: |
+          pip install ruff
+          ruff check app/
+      
+      - name: Type checking with MyPy
+        run: |
+          pip install mypy
+          mypy app/ --ignore-missing-imports
+      
+      - name: Run Pytest
+        run: |
+          pytest tests/ -v --tb=short --cov=app --cov-report=xml
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: alpha-sentinel-mcp
+      
+      - name: Security Scan (Bandit)
+        run: |
+          pip install bandit
+          bandit -r app/ -ll
+      
+      - name: Secret Detection (gitleaks)
+        run: |
+          pip install gitleaks
+          gitleaks detect --source=. --verbose
+
+  docker:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: alpha-sentinel-mcp:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'alpha-sentinel-mcp:latest'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+      
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  deploy-preview:
+    name: Deploy Preview
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: [test, docker]
+    
+    steps:
+      - name: Deploy to Vercel Preview
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./dashboard
+          vercel-args: '--prod'
+
+  deploy-prod:
+    name: Deploy Production
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [test, docker]
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Deploy to Render (API)
+        uses: johnbeynon/render-deploy-action@v1.0.0
+        with:
+          service-id: ${{ secrets.RENDER_SERVICE_ID }}
+          api-key: ${{ secrets.RENDER_API_KEY }}
+      
+      - name: Deploy Dashboard to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
+          working-directory: ./dashboard
+
+  bazaar-index:
+    name: Index on Bazaar
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: deploy-prod
+    
+    steps:
+      - name: Register on CDP Bazaar
+        run: |
+          echo "Registering Alpha Sentinel on CDP Bazaar..."
+          # Use CDP API to register discovered resource
+          curl -X POST "https://api.cdp.coinbase.com/platform/v2/x402/discovery/resources" \
+            -H "Authorization: Bearer ${{ secrets.CDP_API_KEY_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "resourceUrl": "https://alpha-sentinel-mcp.onrender.com/.well-known/mcp",
+              "serviceTags": ["base", "intelligence", "crypto", "market", "x402", "mcp"],
+              "serviceName": "Alpha Sentinel Market Intelligence"
+            }'
