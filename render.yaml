@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: alpha-sentinel-api
+    env: python
+    region: oregon
+    plan: starter
+    branch: main
+    buildCommand: "cd /repo && pip install -r requirements.txt"
+    startCommand: "cd /repo && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: X402_PAY_TO_ADDRESS
+        sync: false
+      - key: OPERATOR_TOKEN
+        generateValue: true
+      - key: FREE_TIER_MONTHLY_QUOTA
+        value: "500"
+      - key: PRO_TIER_MONTHLY_QUOTA
+        value: "50000"
+      - key: KEY_PROVIDER
+        value: "env"
+      - key: PYTHON_VERSION
+        value: "3.11"
+      
+databases:
+  - name: alphase sentinel-cache
+    databaseName: cache_db
+    plan: starter
