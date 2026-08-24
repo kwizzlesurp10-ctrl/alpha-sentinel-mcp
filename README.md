@@ -214,14 +214,28 @@ Subscribe to SSE at `/events` for real-time:
 - **BUYER KEY:** Hot wallet ONLY for paying upstream costs (never used for receiving)
 - **NEVER put EVM_PRIVATE_KEY on Render** - local only!
 
-## 🌐 Deployment
+|## 🌐 Deployment
 
-### Vercel (Dashboard Only)
+**Live Dashboard:** https://alpha-sentinel-mcp.vercel.app/ (coming soon)
+
+### Quick Deploy to Vercel
+
+Click below or follow steps in [`DEPLOYMENT.md`](DEPLOYMENT.md):
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/kwizzlesurp10-ctrl/alpha-sentinel-mcp&project-name=alpha-sentinel-mcp&demo-title=Alpha%20Sentinel%20Mission%20Control)
+
+### Manual Deployment
+
 ```bash
-cd dashboard
-pnpm build
-vercel deploy --prod
+# Install Vercel CLI
+npm install -g vercel
+
+# Deploy dashboard
+cd /home/keef/alpha-sentinel-mcp
+vercel --prod
 ```
+
+The dashboard will proxy API calls to your deployed backend automatically!
 
 ### Render (API)
 Deploy via `render.yaml` - auto-configures:
