@@ -1,30 +1,35 @@
-"""Vercel Python entrypoint (also used by catch-all).
+"""Minimal Vercel FastAPI entry — diagnose boot, then expand."""
+from fastapi import FastAPI
 
-Exports FastAPI `app` for the Vercel Python ASGI runtime.
-"""
-from __future__ import annotations
+app = FastAPI(title="Alpha Sentinel", version="0.2.0-min")
 
-import sys
-import traceback
-from pathlib import Path
 
-_ROOT = Path(__file__).resolve().parent.parent
-if str(_ROOT) not in sys.path:
-    sys.path.insert(0, str(_ROOT))
+@app.get("/")
+@app.get("/api")
+@app.get("/health")
+@app.get("/api/health")
+async def health():
+    return {"status": "healthy", "service": "alpha-sentinel-api", "version": "0.2.0-min"}
 
-try:
-    from app.main import app  # noqa: F401
-except Exception as boot_err:  # pragma: no cover
-    # Never fail cold-start silently — expose boot error on every request.
-    from fastapi import FastAPI
 
-    app = FastAPI(title="Alpha Sentinel BOOT FAILED")
-    _detail = f"{type(boot_err).__name__}: {boot_err}\n{traceback.format_exc()}"
-
-    @app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])
-    async def _boot_failed(full_path: str = ""):
-        return {
-            "error": "boot_failed",
-            "detail": _detail[:4000],
-            "path": full_path,
-        }
+@app.get("/stats")
+@app.get("/api/stats")
+async def stats():
+    return {
+        "total_agents": 0,
+        "free_tier_active": 0,
+        "pro_tier_active": 0,
+        "tool_credits_sold": 0,
+        "revenue_today_usd": 0.0,
+        "calls_today": 0,
+        "avg_latency_ms": 0.0,
+        "active_tools": ["fetch_price"],
+        "free_tools": ["fetch_price"],
+        "paid_tools": [],
+        "tool_count": 1,
+        "pricing": {"fetch_price": "$0.00"},
+        "network": "eip155:8453",
+        "pay_to_configured": True,
+        "timestamp": "now",
+        "note": "minimal bootstrap handler",
+    }

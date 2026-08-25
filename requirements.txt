@@ -1,7 +1,2 @@
-# Alpha Sentinel — Vercel Python serverless + local/dev
+# Minimal deps for bootstrap handler
 fastapi>=0.115.0,<1.0.0
-python-multipart>=0.0.9
-httpx>=0.27.0,<1.0.0
-pydantic>=2.9.0
-pydantic-settings>=2.5.0
-# numpy optional at runtime — volatility falls back if missing
