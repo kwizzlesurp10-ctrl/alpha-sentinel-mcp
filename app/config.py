@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from pydantic import field_validator
+from typing import Any
+
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -16,26 +18,30 @@ def parse_price(val: str | float) -> float:
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    # Drop empty-string env vars so field defaults apply (Vercel often sets "").
+    @model_validator(mode="before")
+    @classmethod
+    def drop_empty_strings(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        return {k: v for k, v in data.items() if v != "" and v is not None}
+
     # Server settings
     host: str = "0.0.0.0"
     port: int = 8403
     upgrade_url: str = "http://localhost:8403/upgrade"
     public_base_url: str = "https://alpha-sentinel-mcp.vercel.app"
 
-    # Free tier quotas
     free_tier_monthly_quota: int = 500
     free_tier_rate_limit_per_min: int = 10
 
-    # Pro tier
     pro_tier_monthly_quota: int = 50_000
     pro_tier_rate_limit_per_min: int = 120
     pro_tier_price: str = "$29.00"
 
-    # MCP Tool credits
     tool_credit_pack_size: int = 100
     tool_credit_pack_price: str = "$1.00"
 
-    # Alpha Sentinel pricing
     price_feed_price: str = "$0.005"
     volatility_alerts_price: str = "$0.02"
     sentiment_analysis_price: str = "$0.01"
@@ -73,11 +79,9 @@ class Settings(BaseSettings):
     operator_token: str | None = None
     redis_url: str | None = None
 
-    # Buyer (hot wallet) - NEVER on cloud!
     evm_private_key: str | None = None
     key_provider: str = "env"
 
-    # Seller cold receive address
     x402_pay_to_address: str | None = None
 
     base_rpc_url: str = "https://mainnet.base.org"
@@ -141,36 +145,9 @@ class Settings(BaseSettings):
         mode="before",
     )
     @classmethod
-    def empty_bool(cls, v):
-        if v is None or v == "":
-            return False
+    def parse_bool(cls, v):
         if isinstance(v, str):
             return v.strip().lower() in {"1", "true", "yes", "on"}
-        return v
-
-    @field_validator(
-        "operator_token",
-        "redis_url",
-        "evm_private_key",
-        "x402_pay_to_address",
-        "coingecko_api_key",
-        "x_api_key",
-        "reddit_api_id",
-        "reddit_api_secret",
-        "cdp_api_key_id",
-        "cdp_api_key_secret",
-        "revenue_network",
-        "stripe_secret_key",
-        "stripe_webhook_secret",
-        "stripe_publishable_key",
-        mode="before",
-    )
-    @classmethod
-    def empty_str_none(cls, v):
-        if v is None:
-            return None
-        if isinstance(v, str) and not v.strip():
-            return None
         return v
 
 
