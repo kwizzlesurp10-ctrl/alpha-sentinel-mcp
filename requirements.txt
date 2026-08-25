@@ -1,48 +1,10 @@
-# Alpha Sentinel MCP Server - Python Dependencies
-
-# FastAPI & ASGI
+# Alpha Sentinel — Vercel Python serverless + local/dev
 fastapi>=0.115.0,<1.0.0
 uvicorn[standard]>=0.32.0,<1.0.0
 python-multipart>=0.0.9
-
-# HTTP Client
 httpx>=0.27.0,<1.0.0
-
-# AI/ML Tooling
-fastmcp>=0.1.0
-
-# Configuration
 pydantic>=2.9.0
 pydantic-settings>=2.5.0
-
-# Async Support
-asyncio>=3.4.3
-
-# Data Processing
-pandas>=2.2.0
 numpy>=2.0.0
-
-# Testing
 pytest>=8.3.0
 pytest-asyncio>=0.23.0
-httpx-test>=2.3.0
-
-# Type Checking
-mypy>=1.11.0
-types-requests>=2.32.0
-
-# Security
-python-jose[cryptography]>=3.3.0
-
-# Monitoring
-prometheus-client>=0.20.0
-
-# Documentation
-griffe>=1.4.0
-
-# Optional: PDF generation for reports
-reportlab>=4.2.0
-
-# Optional: Real-time data (Twitter/X, Reddit APIs)
-tweepy>=4.14.0  # Twitter API v2
-praw>=7.7.0     # Reddit API

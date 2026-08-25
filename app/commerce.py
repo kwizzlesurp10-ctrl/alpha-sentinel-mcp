@@ -66,6 +66,7 @@ class CommerceLayer:
         )
         
         self.stats["total_agents"] += 1
+        self.stats["free_active"] = self.stats.get("free_active", 0) + 1
         
         logger.info(f"Initialized free tier quota for agent: {agent_id}")
     

@@ -1,34 +1,49 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "buildCommand": "cd dashboard && pnpm install && pnpm run build",
+  "framework": "vite",
+  "installCommand": "cd dashboard && npm install",
+  "buildCommand": "cd dashboard && npm run build",
   "outputDirectory": "dashboard/dist",
-  "installCommand": "pip install -r requirements.txt",
-  "devCommand": "uvicorn app.main:app --host 0.0.0.0 --port 8403",
-  "rewrites": [
-    {
-      "source": "/api/mcp/(.*)",
-      "destination": "/api/mcp/\\$1"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 60,
+      "memory": 1024,
+      "includeFiles": "app/**"
     }
+  },
+  "rewrites": [
+    { "source": "/health", "destination": "/api/health" },
+    { "source": "/stats", "destination": "/api/stats" },
+    { "source": "/doctor", "destination": "/api/doctor" },
+    { "source": "/wallet", "destination": "/api/wallet" },
+    { "source": "/pulse", "destination": "/api/pulse" },
+    { "source": "/docs", "destination": "/api/docs" },
+    { "source": "/docs/(.*)", "destination": "/api/docs/$1" },
+    { "source": "/redoc", "destination": "/api/redoc" },
+    { "source": "/openapi.json", "destination": "/api/openapi.json" },
+    { "source": "/tools/(.*)", "destination": "/api/tools/$1" },
+    { "source": "/quota/(.*)", "destination": "/api/quota/$1" },
+    { "source": "/ledger/(.*)", "destination": "/api/ledger/$1" },
+    { "source": "/swarm/(.*)", "destination": "/api/swarm/$1" },
+    { "source": "/.well-known/(.*)", "destination": "/api/.well-known/$1" },
+    { "source": "/api", "destination": "/api" },
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ],
   "headers": [
     {
-      "source": "/api/mcp/(.*)",
+      "source": "/assets/(.*)",
       "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "X-Frame-Options", "value": "DENY" }
       ]
     }
-  ],
-  "env": {
-    "X402_PAY_TO_ADDRESS": "@x402-pay-to-address",
-    "FREE_TIER_MONTHLY_QUOTA": "500",
-    "PRO_TIER_MONTHLY_QUOTA": "50000",
-    "KEY_PROVIDER": "env"
-  }
+  ]
 }

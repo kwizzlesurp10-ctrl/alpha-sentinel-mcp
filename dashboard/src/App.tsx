@@ -1,129 +1,297 @@
-import { useState, useEffect } from 'react'
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  api,
+  type DoctorResponse,
+  type HealthResponse,
+  type StatsResponse,
+  type WalletResponse,
+} from "./api";
 
-interface Stats {
-  total_agents: number;
-  free_tier_active: number;
-  pro_tier_active: number;
-  active_tools: string[];
+type LoadState = "idle" | "loading" | "ready" | "error";
+
+function statusPill(health?: HealthResponse | null, error?: string | null) {
+  if (error) return { cls: "err", label: "API unreachable" };
+  if (!health) return { cls: "", label: "Connecting…" };
+  if (health.status === "healthy") return { cls: "ok", label: "System operational" };
+  return { cls: "warn", label: health.status || "Degraded" };
 }
 
-function App() {
-  const [stats, setStats] = useState<Stats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  
-  const API_BASE = import.meta.env.VITE_API_URL || window.location.origin
+function CheckIcon({ status }: { status: string }) {
+  const cls =
+    status === "pass" ? "status-pass" : status === "warn" ? "status-warn" : "status-fail";
+  const glyph = status === "pass" ? "●" : status === "warn" ? "▲" : "■";
+  return <span className={cls}>{glyph}</span>;
+}
+
+export default function App() {
+  const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [stats, setStats] = useState<StatsResponse | null>(null);
+  const [doctor, setDoctor] = useState<DoctorResponse | null>(null);
+  const [wallet, setWallet] = useState<WalletResponse | null>(null);
+  const [state, setState] = useState<LoadState>("loading");
+  const [error, setError] = useState<string | null>(null);
+
+  const [symbol, setSymbol] = useState("btc");
+  const [toolBusy, setToolBusy] = useState(false);
+  const [toolOut, setToolOut] = useState<string>("// Try fetch_price — free tier friendly");
+  const [toolErr, setToolErr] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    setError(null);
+    try {
+      const [h, s, d, w] = await Promise.all([
+        api.health(),
+        api.stats(),
+        api.doctor(),
+        api.wallet(),
+      ]);
+      setHealth(h);
+      setStats(s);
+      setDoctor(d);
+      setWallet(w);
+      setState("ready");
+    } catch (e) {
+      setState("error");
+      setError(e instanceof Error ? e.message : "Failed to load Mission Control data");
+    }
+  }, []);
 
   useEffect(() => {
-    fetchStats()
-    const interval = setInterval(fetchStats, 30000) // Update every 30s
-    return () => clearInterval(interval)
-  }, [])
+    refresh();
+    const id = setInterval(refresh, 30_000);
+    return () => clearInterval(id);
+  }, [refresh]);
 
-  const fetchStats = async () => {
+  const pill = useMemo(() => statusPill(health, error), [health, error]);
+
+  const runPrice = async () => {
+    setToolBusy(true);
+    setToolErr(null);
+    setToolOut("Fetching…");
     try {
-      const response = await fetch(`${API_BASE}/stats`)
-      if (!response.ok) throw new Error('Failed to fetch stats')
-      const data = await response.json()
-      setStats(data)
-      setLoading(false)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
-      setLoading(false)
+      const data = await api.fetchPrice(symbol.trim() || "btc");
+      setToolOut(JSON.stringify(data, null, 2));
+      // Soft refresh stats after a free call
+      api.stats().then(setStats).catch(() => undefined);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Tool call failed";
+      setToolErr(msg);
+      setToolOut(`// error\n${msg}`);
+    } finally {
+      setToolBusy(false);
     }
-  }
+  };
 
-  if (loading) {
-    return (
-      <div className="container">
-        <h1>⏳ Loading Alpha Sentinel Mission Control...</h1>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="container">
-        <h1>❌ Error</h1>
-        <p>{error}</p>
-        <button onClick={fetchStats}>Retry</button>
-      </div>
-    )
-  }
+  const tools = stats?.active_tools ?? [];
+  const free = new Set(stats?.free_tools ?? ["fetch_price"]);
+  const pricing = stats?.pricing ?? {};
 
   return (
-    <div className="container">
-      <header>
-        <h1>🛡️ Alpha Sentinel - Mission Control</h1>
-        <p class="tagline">Market Intelligence x402 Dashboard</p>
-        <div className="status-indicator">
-          <span className="status-dot"></span>
-          <span>System Operational</span>
+    <div className="app">
+      <header className="header">
+        <div className="brand">
+          <div className="brand-mark" aria-hidden>
+            🛡
+          </div>
+          <div>
+            <h1>Alpha Sentinel</h1>
+            <div className="tagline">Mission Control · Market Intelligence x402</div>
+          </div>
+        </div>
+        <div className="header-actions">
+          <div className={`pill ${pill.cls}`}>
+            <span className="dot" />
+            <span>{pill.label}</span>
+          </div>
+          {stats?.network && (
+            <div className="pill hide-mobile mono">{stats.network}</div>
+          )}
+          <button className="btn" type="button" onClick={refresh}>
+            Refresh
+          </button>
+          <a className="btn btn-primary" href="/docs" target="_blank" rel="noreferrer">
+            API Docs
+          </a>
         </div>
       </header>
 
-      {stats && (
-        <>
-          <div className="stats-grid">
-            <div className="stat-card" style={{borderColor: '#6366f1'}}>
-              <div className="stat-label">Total Agents</div>
-              <div className="stat-value">{stats.total_agents}</div>
-            </div>
-            <div className="stat-card" style={{borderColor: '#10b981'}}>
-              <div className="stat-label">Free Tier Active</div>
-              <div className="stat-value">{stats.free_tier_active}</div>
-            </div>
-            <div className="stat-card" style={{borderColor: '#f59e0b'}}>
-              <div className="stat-label">Pro Tier Active</div>
-              <div className="stat-value">{stats.pro_tier_active}</div>
-            </div>
-            <div className="stat-card" style={{borderColor: '#ef4444'}}>
-              <div className="stat-label">Active Tools</div>
-              <div className="stat-value">{stats.active_tools?.length || 0}</div>
-            </div>
+      {error && (
+        <div className="error-banner">
+          <strong>Live API error:</strong> {error}
+          <div className="muted" style={{ marginTop: 6 }}>
+            If this is a fresh deploy, wait ~30s for the Python function cold start, then retry.
           </div>
-
-          {stats.active_tools && stats.active_tools.length > 0 && (
-            <div className="tools-section">
-              <h2>⚡ Active Tools</h2>
-              <ul className="tools-list">
-                {stats.active_tools.map(tool => (
-                  <li key={tool}>{tool}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <div className="actions">
-            <a 
-              href={`${window.location.origin}/docs`} 
-              className="btn btn-primary"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              View API Docs
-            </a>
-            <a 
-              href="https://github.com/kwizzlesurp10-ctrl/alpha-sentinel-mcp" 
-              className="btn btn-secondary"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              GitHub Repository
-            </a>
-            <button onClick={fetchStats} className="btn btn-secondary">
-              🔄 Refresh
-            </button>
-          </div>
-        </>
+        </div>
       )}
 
-      <footer>
-        <p>Built by Keith (kwizzlesurp10-ctrl) • Powered by x402 Micropayments</p>
-        <p>Predictive intelligence, monetized on-chain ★彡</p>
+      <section className="grid stats" style={{ marginBottom: 14 }}>
+        <div className="card stat-card">
+          <div className="card-title">Calls today</div>
+          {state === "loading" && !stats ? (
+            <div className="skeleton" />
+          ) : (
+            <>
+              <div className="stat-value">{stats?.calls_today ?? "—"}</div>
+              <div className="stat-sub">avg {stats?.avg_latency_ms ?? 0} ms</div>
+            </>
+          )}
+        </div>
+        <div className="card stat-card green">
+          <div className="card-title">Free agents</div>
+          <div className="stat-value">{stats?.free_tier_active ?? "—"}</div>
+          <div className="stat-sub">{stats?.total_agents ?? 0} total agents</div>
+        </div>
+        <div className="card stat-card amber">
+          <div className="card-title">Pro agents</div>
+          <div className="stat-value">{stats?.pro_tier_active ?? "—"}</div>
+          <div className="stat-sub">credits sold {stats?.tool_credits_sold ?? 0}</div>
+        </div>
+        <div className="card stat-card violet">
+          <div className="card-title">Revenue (today)</div>
+          <div className="stat-value mono">
+            ${(stats?.revenue_today_usd ?? 0).toFixed(2)}
+          </div>
+          <div className="stat-sub">{stats?.tool_count ?? tools.length} tools live</div>
+        </div>
+      </section>
+
+      <section className="grid main">
+        <div className="grid" style={{ gap: 14 }}>
+          <div className="card">
+            <div className="card-title">
+              <span>Try tool · fetch_price</span>
+              <span className="chip chip-free">FREE</span>
+            </div>
+            <div className="form-row">
+              <input
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value)}
+                placeholder="btc / eth / sol"
+                aria-label="Symbol"
+              />
+              <button
+                className="btn btn-primary"
+                type="button"
+                disabled={toolBusy}
+                onClick={runPrice}
+              >
+                {toolBusy ? "Running…" : "Run"}
+              </button>
+            </div>
+            {toolErr && <div className="error-banner">{toolErr}</div>}
+            <pre className="output">{toolOut}</pre>
+          </div>
+
+          <div className="card">
+            <div className="card-title">Active tools & pricing</div>
+            {tools.length === 0 ? (
+              <p className="muted">No tools reported yet — check /stats after API is up.</p>
+            ) : (
+              <ul className="tools-list">
+                {tools.map((name) => (
+                  <li key={name} className="tool-row">
+                    <span className="tool-name">{name}</span>
+                    <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <span className="mono muted">{pricing[name] ?? "—"}</span>
+                      <span className={`chip ${free.has(name) ? "chip-free" : "chip-paid"}`}>
+                        {free.has(name) ? "FREE" : "PAID"}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        <div className="grid" style={{ gap: 14 }}>
+          <div className="card">
+            <div className="card-title">
+              <span>Doctor</span>
+              <span className="mono muted">{doctor?.status ?? "—"}</span>
+            </div>
+            {!doctor ? (
+              <div className="skeleton" style={{ height: 80 }} />
+            ) : (
+              <div className="check-list">
+                {doctor.checks.map((c) => (
+                  <div key={c.id} className="check-row">
+                    <CheckIcon status={c.status} />
+                    <div>
+                      <div className="name">{c.name}</div>
+                      <div className="msg">{c.message}</div>
+                      {c.fix && c.status !== "pass" && <div className="fix">{c.fix}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="card">
+            <div className="card-title">Wallet & settlement</div>
+            <div className="check-list">
+              <div className="check-row">
+                <span className="status-pass">◆</span>
+                <div>
+                  <div className="name">Seller receive</div>
+                  <div className="msg mono">
+                    {wallet?.seller_receive_address_full ||
+                      wallet?.seller_receive_address ||
+                      "not configured"}
+                  </div>
+                </div>
+              </div>
+              <div className="check-row">
+                <span className={wallet?.pay_to_configured ? "status-pass" : "status-fail"}>
+                  ◆
+                </span>
+                <div>
+                  <div className="name">Pay-to configured</div>
+                  <div className="msg">{wallet?.pay_to_configured ? "yes" : "no"}</div>
+                </div>
+              </div>
+              <div className="check-row">
+                <span className="status-pass">◆</span>
+                <div>
+                  <div className="name">Buyer key on server</div>
+                  <div className="msg">{wallet?.buyer_address ?? "—"}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="card-title">Quick links</div>
+            <div className="links">
+              <a className="btn" href="/docs" target="_blank" rel="noreferrer">
+                OpenAPI /docs
+              </a>
+              <a className="btn" href="/.well-known/mcp" target="_blank" rel="noreferrer">
+                MCP manifest
+              </a>
+              <a className="btn" href="/health" target="_blank" rel="noreferrer">
+                /health
+              </a>
+              <a
+                className="btn"
+                href="https://github.com/kwizzlesurp10-ctrl/alpha-sentinel-mcp"
+                target="_blank"
+                rel="noreferrer"
+              >
+                GitHub
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="footer">
+        <span>Alpha Sentinel · predictive intelligence, monetized on-chain</span>
+        <span className="mono">
+          {health?.version ? `api v${health.version}` : "api —"} · refresh 30s
+        </span>
       </footer>
     </div>
-  )
+  );
 }
-
-export default App

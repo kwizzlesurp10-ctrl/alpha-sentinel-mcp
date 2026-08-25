@@ -1,199 +1,291 @@
-"""Alpha Sentinel MCP Server - Main FastAPI application."""
+"""Alpha Sentinel MCP Server - Main FastAPI application (Vercel + local)."""
 
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
+from __future__ import annotations
+
 import logging
+from datetime import datetime, timezone
+from typing import Literal
 
-from app.config import settings
-from app.commerce import CommerceLayer
-from app.x402_services import X402Services
-from app.mcp_server import mcp_app
-from app.intelligence.price_feed import fetch_price_endpoint
-from app.intelligence.volatility import analyze_volatility_endpoint
-from app.intelligence.sentiment import aggregate_sentiment_endpoint
-from app.intelligence.risk import calculate_risk_score_endpoint
-from app.intelligence.reports import generate_market_report_endpoint
-from app.tools_registry import TOOL_SPECS, TOOL_COUNT
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
 from app.agent_surface import agent_card, paid_resources
+from app.commerce import CommerceLayer
+from app.config import settings
+from app.intelligence.price_feed import fetch_price_endpoint
+from app.intelligence.reports import generate_market_report_endpoint
+from app.intelligence.risk import calculate_risk_score_endpoint
+from app.intelligence.sentiment import aggregate_sentiment_endpoint
+from app.intelligence.volatility import analyze_volatility_endpoint
+from app.tools_registry import (
+    EXPECTED_TOOL_NAMES,
+    FREE_TOOLS,
+    PAID_TOOLS,
+    TOOL_COUNT,
+    TOOL_PRICES,
+    TOOL_SPECS,
+)
+from app.x402_services import X402Services
 
-# Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Create FastAPI app
 app = FastAPI(
     title="Alpha Sentinel MCP Server",
-    description="""
-## Market Intelligence x402 Marketplace 🚀
-
-Real-time crypto market monitoring, volatility alerts, and sentiment analysis 
-as paid MCP tools for AI agents.
-
-### Quick Start
-
-**Free Tier:** 500 calls/month, 10/min  
-**Pro Tier:** $29/mo, unlimited quota, 120/min  
-**Tool Credits:** $1.00 per 100 flexible calls
-
-### Core Tools
-
-- **`fetch_price()`** - Real-time price lookup ($0.005)
-- **`analyze_volatility()`** - Anomaly detection ($0.02)  
-- **`aggregate_sentiment()`** - Social sentiment aggregation ($0.01)
-- **`calculate_risk_score()`** - Multi-factor risk scoring ($0.03)
-- **`generate_market_report()`** - Comprehensive reports ($0.15)
-
-### Settlement
-
-All payments settled via x402 on Base network (Sepolia dev / Mainnet prod).
-Fiat rail available via Stripe fallback.
-    """,
-    version="0.1.0",
-    contact={
-        "name": "Keith Severson",
-        "email": settings.contact_email,
-    },
+    description="Market Intelligence x402 Marketplace — predictive crypto intel for AI agents.",
+    version="0.2.0",
+    contact={"name": "Keith Severson", "email": settings.contact_email},
 )
 
-# CORS middleware (allow dashboard origins)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure in production
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Initialize layers
 commerce_layer = CommerceLayer(settings)
 x402_services = X402Services(settings)
 
-# Mount FastMCP server
-mcp_app.mount(app)
+# FastMCP is optional — never block HTTP boot on serverless cold start.
+try:
+    from app.mcp_server import mcp_app  # type: ignore
+
+    if hasattr(mcp_app, "http_app"):
+        app.mount("/mcp", mcp_app.http_app())
+        logger.info("FastMCP mounted at /mcp via http_app()")
+    elif hasattr(mcp_app, "sse_app"):
+        app.mount("/mcp", mcp_app.sse_app())
+        logger.info("FastMCP mounted at /mcp via sse_app()")
+    elif hasattr(mcp_app, "mount"):
+        mcp_app.mount(app)
+        logger.info("FastMCP mounted via .mount(app)")
+    else:
+        logger.warning("FastMCP present but no mount/http_app/sse_app — HTTP tools only")
+except Exception as exc:  # noqa: BLE001
+    logger.warning("FastMCP unavailable (%s) — HTTP tool endpoints still active", exc)
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _strip_api_prefix(path: str) -> str:
+    """Normalize Vercel rewrite paths that arrive as /api/..."""
+    if path == "/api":
+        return "/"
+    if path.startswith("/api/"):
+        return path[4:]
+    return path
+
+
+@app.middleware("http")
+async def normalize_vercel_api_path(request: Request, call_next):
+    """Map /api/* → /* so FastAPI routes work behind Vercel rewrites."""
+    path = request.scope.get("path", "")
+    normalized = _strip_api_prefix(path)
+    if normalized != path:
+        request.scope["path"] = normalized
+        # raw_path is bytes in ASGI
+        request.scope["raw_path"] = normalized.encode("utf-8")
+    return await call_next(request)
 
 
 @app.get("/")
 async def root():
-    """Root endpoint - API health check."""
     return {
         "service": "Alpha Sentinel MCP Server",
-        "version": "0.1.0",
+        "version": "0.2.0",
         "status": "operational",
         "tools_count": TOOL_COUNT,
         "documentation": "/docs",
+        "mission_control": "/",
         "agent_card": "/.well-known/agent-card.json",
         "mcp_manifest": "/.well-known/mcp",
+        "health": "/health",
     }
 
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
+    x402_status = await x402_services.status() if x402_services else {"enabled": False}
     return {
         "status": "healthy",
-        "timestamp": "now",
+        "service": "alpha-sentinel-api",
+        "version": "0.2.0",
+        "timestamp": _now_iso(),
         "components": {
             "api": "running",
             "commerce": commerce_layer.status(),
-            "x402": await x402_services.status() if x402_services else "disabled",
-        }
+            "x402": x402_status,
+        },
     }
 
 
+@app.get("/doctor")
+async def doctor():
+    """Ops readiness checks for Mission Control."""
+    checks = []
+
+    pay_to = settings.x402_pay_to_address
+    checks.append(
+        {
+            "id": "pay_to",
+            "name": "Seller receive address",
+            "status": "pass" if pay_to else "fail",
+            "message": f"Configured ({pay_to[:10]}…)" if pay_to else "X402_PAY_TO_ADDRESS missing",
+            "fix": "Set X402_PAY_TO_ADDRESS in Vercel env (seller cold wallet only)",
+        }
+    )
+
+    checks.append(
+        {
+            "id": "buyer_key",
+            "name": "Buyer private key (must stay local)",
+            "status": "pass" if not settings.evm_private_key else "warn",
+            "message": "Not set on server (correct)"
+            if not settings.evm_private_key
+            else "EVM_PRIVATE_KEY is set on server — move to local-only",
+            "fix": "Unset EVM_PRIVATE_KEY on Vercel; keep buyer key in ~/secrets only",
+        }
+    )
+
+    checks.append(
+        {
+            "id": "network",
+            "name": "Default settlement network",
+            "status": "pass",
+            "message": settings.x402_default_network,
+        }
+    )
+
+    checks.append(
+        {
+            "id": "tools",
+            "name": "Tool registry",
+            "status": "pass" if TOOL_COUNT >= 5 else "fail",
+            "message": f"{TOOL_COUNT} tools registered ({len(FREE_TOOLS)} free)",
+        }
+    )
+
+    # Live CoinGecko probe (non-fatal)
+    cg_ok = False
+    cg_msg = "not probed"
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            r = await client.get(f"{settings.coingecko_base_url}/ping")
+            cg_ok = r.status_code == 200
+            cg_msg = f"HTTP {r.status_code}"
+    except Exception as exc:  # noqa: BLE001
+        cg_msg = str(exc)[:120]
+
+    checks.append(
+        {
+            "id": "coingecko",
+            "name": "CoinGecko reachability",
+            "status": "pass" if cg_ok else "warn",
+            "message": cg_msg,
+            "fix": "Optional COINGECKO_API_KEY for higher rate limits",
+        }
+    )
+
+    worst = "pass"
+    for c in checks:
+        if c["status"] == "fail":
+            worst = "fail"
+            break
+        if c["status"] == "warn" and worst == "pass":
+            worst = "warn"
+
+    return {"status": worst, "timestamp": _now_iso(), "checks": checks}
+
+
 # ============================================================================
-# MCP Tool Endpoints (direct HTTP access as x402-gated resources)
+# MCP Tool Endpoints (HTTP)
 # ============================================================================
 
-@app.post("/tools/fetch_price")
+
+@app.api_route("/tools/fetch_price", methods=["GET", "POST"])
 async def http_fetch_price(
-    symbol: str = Query(..., description="Crypto symbol (e.g., btc, eth)")
+    symbol: str = Query(..., description="Crypto symbol (e.g., btc, eth)"),
 ):
-    """HTTP endpoint for price feed (x402-gated).
-    
-    This is the paid resource path - requires settlement before execution.
-    MCP tool calls go through /mcp instead.
-    """
+    """Free-tier friendly price feed (GET or POST)."""
     try:
         result = await fetch_price_endpoint(symbol)
+        commerce_layer.consume_call("anonymous", cost_usd=0.0)
         return result
     except Exception as e:
-        logger.error(f"Price fetch failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Price fetch failed: %s", e)
+        raise HTTPException(status_code=502, detail=str(e)) from e
 
 
-@app.post("/tools/analyze_volatility")
+@app.api_route("/tools/analyze_volatility", methods=["GET", "POST"])
 async def http_analyze_volatility(
     symbol: str = Query(...),
     window_minutes: int = Query(default=60, ge=1, le=1440),
-    z_threshold: float = Query(default=2.0, ge=0.1, le=5.0)
+    z_threshold: float = Query(default=2.0, ge=0.1, le=5.0),
 ):
-    """HTTP endpoint for volatility analysis (x402-gated)."""
     try:
-        result = await analyze_volatility_endpoint(symbol, window_minutes, z_threshold)
-        return result
+        return await analyze_volatility_endpoint(symbol, window_minutes, z_threshold)
     except Exception as e:
-        logger.error(f"Volatility analysis failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Volatility analysis failed: %s", e)
+        raise HTTPException(status_code=502, detail=str(e)) from e
 
 
-@app.post("/tools/aggregate_sentiment")
+@app.api_route("/tools/aggregate_sentiment", methods=["GET", "POST"])
 async def http_aggregate_sentiment(
-    symbols: list[str] = Query(..., description="List of crypto symbols"),
-    sources: list[str] = Query(default=["twitter", "reddit"], description="Data sources"),
-    window_minutes: int = Query(default=60, ge=5, le=1440)
-):
-    """HTTP endpoint for sentiment aggregation (x402-gated)."""
-    try:
-        result = await aggregate_sentiment_endpoint(symbols, sources, window_minutes)
-        return result
-    except Exception as e:
-        logger.error(f"Sentiment analysis failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/tools/calculate_risk")
-async def http_calculate_risk(
-    symbols: list[str] = Query(...),
-    include_factors: list[str] = Query(default=["volatility", "liquidity", "correlation"])
-):
-    """HTTP endpoint for risk assessment (x402-gated)."""
-    try:
-        result = await calculate_risk_score_endpoint(symbols, include_factors)
-        return result
-    except Exception as e:
-        logger.error(f"Risk calculation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/tools/generate_report")
-async def http_generate_report(
-    report_type: str = Query(default="daily", enum=["daily", "weekly", "monthly"]),
     symbols: list[str] = Query(default=["btc", "eth"]),
-    format: str = Query(default="json", enum=["json", "pdf"])
+    sources: list[str] = Query(default=["twitter", "reddit"]),
+    window_minutes: int = Query(default=60, ge=5, le=1440),
 ):
-    """HTTP endpoint for market report generation (x402-gated)."""
     try:
-        result = await generate_market_report_endpoint(report_type, symbols, format)
-        return result
+        return await aggregate_sentiment_endpoint(symbols, sources, window_minutes)
     except Exception as e:
-        logger.error(f"Report generation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Sentiment analysis failed: %s", e)
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+
+@app.api_route("/tools/calculate_risk", methods=["GET", "POST"])
+async def http_calculate_risk(
+    symbols: list[str] = Query(default=["btc", "eth"]),
+    include_factors: list[str] = Query(default=["volatility", "liquidity", "correlation"]),
+):
+    try:
+        return await calculate_risk_score_endpoint(symbols, include_factors)
+    except Exception as e:
+        logger.error("Risk calculation failed: %s", e)
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+
+@app.api_route("/tools/generate_report", methods=["GET", "POST"])
+async def http_generate_report(
+    report_type: Literal["daily", "weekly", "monthly"] = Query(default="daily"),
+    symbols: list[str] = Query(default=["btc", "eth"]),
+    format: Literal["json", "pdf"] = Query(default="json"),
+):
+    try:
+        return await generate_market_report_endpoint(report_type, symbols, format)
+    except Exception as e:
+        logger.error("Report generation failed: %s", e)
+        raise HTTPException(status_code=502, detail=str(e)) from e
 
 
 # ============================================================================
-# Agent Card & Discovery (/.well-known/)
+# Discovery
 # ============================================================================
+
 
 @app.get("/.well-known/agent-card.json")
 async def agent_card_endpoint():
-    """Agent card for discoverability (A2A protocol)."""
     return agent_card()
 
 
 @app.get("/.well-known/mcp")
 async def mcp_manifest():
-    """MCP tool registry manifest."""
-    from fastapi.responses import JSONResponse
     manifest = {
         "mcpServers": {
             "alpha-sentinel": {
@@ -202,24 +294,34 @@ async def mcp_manifest():
                 "description": "Alpha Sentinel Market Intelligence",
                 "tools": TOOL_SPECS,
             }
-        }
+        },
+        "tools": [
+            {
+                "name": t["name"],
+                "description": t["description"][:280],
+                "price": TOOL_PRICES.get(t["name"], "$0.01"),
+                "free_tier": t["tier_access"]["free"],
+            }
+            for t in TOOL_SPECS
+        ],
+        "count": TOOL_COUNT,
+        "http_base": "/tools",
     }
     return JSONResponse(content=manifest)
 
 
 @app.get("/.well-known/paid-resources")
 async def paid_resources_endpoint():
-    """Paid resources catalog for Bazaar discovery."""
     return paid_resources()
 
 
 # ============================================================================
-# Commerce & Quota Endpoints
+# Commerce & ops
 # ============================================================================
+
 
 @app.get("/quota/{agent_id}")
 async def get_quota(agent_id: str):
-    """Get remaining quota for an agent."""
     quota = commerce_layer.get_quota(agent_id)
     return {
         "agent_id": agent_id,
@@ -234,69 +336,55 @@ async def get_quota(agent_id: str):
 
 @app.get("/stats")
 async def get_stats():
-    """Live usage statistics."""
     stats = commerce_layer.get_stats()
+    commerce_status = commerce_layer.status()
     return {
         "total_agents": stats.get("total_agents", 0),
-        "free_tier_active": stats.get("free_active", 0),
-        "pro_tier_active": stats.get("pro_active", 0),
+        "free_tier_active": max(
+            stats.get("free_active", 0), commerce_status.get("free_tier_count", 0)
+        ),
+        "pro_tier_active": max(
+            stats.get("pro_active", 0), commerce_status.get("pro_tier_count", 0)
+        ),
         "tool_credits_sold": stats.get("tool_credits_sold", 0),
         "revenue_today_usd": stats.get("revenue_today_usd", 0.0),
         "calls_today": stats.get("calls_today", 0),
         "avg_latency_ms": stats.get("avg_latency_ms", 0.0),
+        "active_tools": EXPECTED_TOOL_NAMES,
+        "free_tools": FREE_TOOLS,
+        "paid_tools": PAID_TOOLS,
+        "tool_count": TOOL_COUNT,
+        "pricing": TOOL_PRICES,
+        "network": settings.x402_default_network,
+        "pay_to_configured": bool(settings.x402_pay_to_address),
+        "timestamp": _now_iso(),
     }
 
 
-# ============================================================================
-# Pulse & Diligence Products
-# ============================================================================
-
 @app.get("/pulse")
 async def get_pulse_report(block_depth: int = Query(default=12, ge=1, le=100)):
-    """Base network Pulse synthesis report (paid resource)."""
     try:
-        from app.pulse import generate_pulse_report
+        from app.pulse import generate_pulse_report  # optional module
+
         return await generate_pulse_report(block_depth)
+    except ImportError:
+        return {
+            "status": "stub",
+            "message": "Pulse module not bundled in this build",
+            "block_depth": block_depth,
+            "timestamp": _now_iso(),
+        }
     except Exception as e:
-        logger.error(f"Pulse generation failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Pulse generation failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
-
-@app.post("/tasks/us-rental-diligence")
-async def us_rental_diligence(
-    property_addresses: list[str] = Query(..., max_items=5),
-    cities: list[str] = Query(...)  # e.g., ["minneapolis", "mn"]
-):
-    """US Rental Diligence Pack - multi-property compliance check.
-    
-    Combines municipal open-data sources to check:
-    - Rental license status
-    - Violation history
-    - Tenant rights compliance
-    - Property condemnation records
-    
-    Price: $1.50 (clamped to [0.75, 2.50] USD)
-    """
-    try:
-        from app.city_compliance import rental_diligence_composite
-        return await rental_diligence_composite(property_addresses, cities)
-    except Exception as e:
-        logger.error(f"Diligence pack failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ============================================================================
-# Ledger & Settlement
-# ============================================================================
 
 @app.get("/ledger/{name}")
 async def get_ledger(name: str):
-    """Get ledger entries (git-ignored jsonl files)."""
     if name not in ["spend", "revenue"]:
         raise HTTPException(status_code=400, detail="name must be 'spend' or 'revenue'")
-    
     try:
-        with open(f"ledger/{name}.jsonl", "r") as f:
+        with open(f"ledger/{name}.jsonl", encoding="utf-8") as f:
             entries = [line.strip() for line in f if line.strip()]
         return {"name": name, "count": len(entries), "entries": entries[-100:]}
     except FileNotFoundError:
@@ -305,127 +393,33 @@ async def get_ledger(name: str):
 
 @app.get("/wallet")
 async def get_wallet_info():
-    """Get wallet addresses (public info only)."""
-    wallet_info = {
-        "seller_receive_address": settings.x402_pay_to_address[:10] + "..." 
-                                   if settings.x402_pay_to_address else None,
+    addr = settings.x402_pay_to_address
+    return {
+        "seller_receive_address": (addr[:10] + "…") if addr and len(addr) > 10 else addr,
+        "seller_receive_address_full": addr,  # public receive address only
         "buyer_address": "configured" if settings.evm_private_key else "not configured",
         "network": settings.x402_default_network,
+        "pay_to_configured": bool(addr),
     }
-    return wallet_info
 
-
-# ============================================================================
-# Swarm Agency Stats (if enabled)
-# ============================================================================
 
 @app.get("/swarm/stats")
 async def get_swarm_stats():
-    """Swarm agency operational metrics."""
     if not settings.swarm_enabled:
         return {"enabled": False, "message": "Swarm agency disabled"}
-    
-    try:
-        from app.swarm.assessor import Assessor
-        assessor = Assessor()
-        score = assessor.score_profit_routes()
-        
-        return {
-            "enabled": True,
-            "ltv_cac_ratio": score.ltv_cac,
-            "target_ltv_cac": settings.swarm_target_ltv_cac,
-            "margin_ratio": score.margin_ratio,
-            "profit_routes_found": len(score.routes),
-            "top_route": score.top_route.dict() if score.top_route else None,
-        }
-    except Exception as e:
-        logger.error(f"Swarm stats failed: {e}")
-        return {"error": str(e)}
+    return {"enabled": True, "message": "Swarm module not loaded in serverless build"}
 
-
-# ============================================================================
-# Operator Actions (dashboard POST endpoints)
-# ============================================================================
-
-@app.post("/operator/settle-composite-sale")
-async def operator_settle_composite_sale(
-    composite_id: str,
-    buyer_address: str,
-    amount_usd: float,
-):
-    """Operator action: settle a swarm composite sale.
-    
-    Only enabled when DASHBOARD_ACTIONS=true in environment.
-    """
-    if not settings.dashboard_actions:
-        raise HTTPException(status_code=403, detail="Dashboard actions disabled")
-    
-    try:
-        from app.swarm.merchant import settle_composite_sale
-        await settle_composite_sale(composite_id, buyer_address, amount_usd)
-        return {"status": "settled", "composite_id": composite_id}
-    except Exception as e:
-        logger.error(f"Composite settlement failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/operator/update-tool-price")
-async def operator_update_tool_price(
-    tool_name: str,
-    new_price: str,
-):
-    """Operator action: update MCP tool pricing dynamically."""
-    if not settings.dashboard_actions:
-        raise HTTPException(status_code=403, detail="Dashboard actions disabled")
-    
-    try:
-        from app.tools_registry import update_tool_price
-        update_tool_price(tool_name, new_price)
-        return {"status": "updated", "tool": tool_name, "new_price": new_price}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Price update failed: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# ============================================================================
-# Application Lifecycle
-# ============================================================================
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize application on startup."""
-    logger.info("🚀 Alpha Sentinel MCP Server starting up...")
-    logger.info(f"📊 Tools registered: {TOOL_COUNT}")
-    logger.info(f"💰 Seller address: {settings.x402_pay_to_address[:10] + '...' if settings.x402_pay_to_address else 'NOT CONFIGURED'}")
-    
-    if settings.cdp_api_key_id and settings.cdp_api_key_secret:
-        logger.info("✅ CDP facilitator configured for mainnet selling")
+    logger.info("Alpha Sentinel starting (tools=%s)", TOOL_COUNT)
+    if settings.x402_pay_to_address:
+        logger.info("Seller address configured: %s…", settings.x402_pay_to_address[:10])
     else:
-        logger.warning("⚠️  CDP credentials not set - will only sell on Sepolia testnet")
-    
-    if settings.redis_url:
-        logger.info("✅ Redis configured for state persistence")
-    else:
-        logger.info("ℹ️  Using in-memory stores (consider Redis for production)")
-    
-    if settings.swarm_enabled:
-        logger.info("🦋 Swarm agency enabled - buy-compose-resell active!")
-    else:
-        logger.info("ℹ️  Swarm agency disabled")
+        logger.warning("X402_PAY_TO_ADDRESS not set")
 
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown."""
-    logger.info("👋 Alpha Sentinel shutting down...")
-
-
-# ============================================================================
-# OpenAPI Customization
-# ============================================================================
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host=settings.host, port=settings.port)

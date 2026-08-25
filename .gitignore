@@ -74,3 +74,9 @@ ledger/revenue.jsonl
 ledger/cache/
 .ledger_cache/
 .vercel
+
+# Node / dashboard
+node_modules/
+dashboard/node_modules/
+dashboard/dist/
+*.tsbuildinfo
