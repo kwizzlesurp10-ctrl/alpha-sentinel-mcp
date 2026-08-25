@@ -108,19 +108,8 @@ async def normalize_vercel_api_path(request: Request, call_next):
 api = APIRouter(tags=["alpha-sentinel"])
 
 
-@api.get("/")
-async def root():
-    return {
-        "service": "Alpha Sentinel MCP Server",
-        "version": "0.2.0",
-        "status": "operational",
-        "tools_count": TOOL_COUNT,
-        "documentation": "/api/docs",
-        "mission_control": "/",
-        "agent_card": "/.well-known/agent-card.json",
-        "mcp_manifest": "/.well-known/mcp",
-        "health": "/api/health",
-    }
+# Root "/" is reserved for Mission Control SPA (see api/index.py).
+# API discovery lives at /health and /docs.
 
 
 @api.get("/health")

@@ -109,7 +109,7 @@ export default function App() {
           <button className="btn" type="button" onClick={refresh}>
             Refresh
           </button>
-          <a className="btn btn-primary" href="/api/docs" target="_blank" rel="noreferrer">
+          <a className="btn btn-primary" href="/docs" target="_blank" rel="noreferrer">
             API Docs
           </a>
         </div>
@@ -264,14 +264,14 @@ export default function App() {
           <div className="card">
             <div className="card-title">Quick links</div>
             <div className="links">
-              <a className="btn" href="/api/docs" target="_blank" rel="noreferrer">
+              <a className="btn" href="/docs" target="_blank" rel="noreferrer">
                 OpenAPI /docs
               </a>
-              <a className="btn" href="/api/.well-known/mcp" target="_blank" rel="noreferrer">
+              <a className="btn" href="/.well-known/mcp" target="_blank" rel="noreferrer">
                 MCP manifest
               </a>
-              <a className="btn" href="/api/health" target="_blank" rel="noreferrer">
-                /api/health
+              <a className="btn" href="/health" target="_blank" rel="noreferrer">
+                /health
               </a>
               <a
                 className="btn"

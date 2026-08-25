@@ -1,6 +1,6 @@
-/** Same-origin API under /api/* (Vercel Python function). */
+/** Same-origin API (FastAPI serves SPA + JSON under one origin). */
 export const API_BASE =
-  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") || "/api";
+  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") || "";
 
 export type StatsResponse = {
   total_agents: number;
