@@ -44,7 +44,7 @@ install: venv
 # Development Server
 dev:
 	@echo "🚀 Starting development server on port 8403..."
-	.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8403 --log-level info
+	.venv/bin/uvicorn app.application:app --reload --host 0.0.0.0 --port 8403 --log-level info
 
 # MCP Stdio Transport
 mcp:
@@ -53,7 +53,7 @@ mcp:
 
 # Run Production Server
 run:
-	.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8403
+	.venv/bin/uvicorn app.application:app --host 0.0.0.0 --port 8403
 
 # Testing
 test:

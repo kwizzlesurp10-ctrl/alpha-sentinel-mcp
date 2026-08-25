@@ -1,15 +1,11 @@
-from fastapi import FastAPI
+"""Vercel FastAPI entry — full Alpha Sentinel API."""
+from __future__ import annotations
 
-app = FastAPI()
+import sys
+from pathlib import Path
 
-@app.get("/")
-async def root():
-    return {"ok": True, "service": "alpha-sentinel"}
+_ROOT = Path(__file__).resolve().parent.parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
-@app.get("/health")
-async def health():
-    return {"status": "healthy"}
-
-@app.get("/api/health")
-async def api_health():
-    return {"status": "healthy", "path": "/api/health"}
+from app.application import app  # noqa: E402, F401

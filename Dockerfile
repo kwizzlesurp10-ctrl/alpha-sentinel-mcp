@@ -48,4 +48,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD python -c "import httpx; httpx.get('http://localhost:8403/health')" || exit 1
 
 # Default command (FastAPI server)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8403"]
+CMD ["uvicorn", "app.application:app", "--host", "0.0.0.0", "--port", "8403"]
