@@ -24,7 +24,16 @@ class Settings(BaseSettings):
     def drop_empty_strings(cls, data: Any) -> Any:
         if not isinstance(data, dict):
             return data
-        return {k: v for k, v in data.items() if v != "" and v is not None}
+        cleaned: dict[str, Any] = {}
+        for k, v in data.items():
+            if v is None:
+                continue
+            if isinstance(v, str):
+                v = v.strip()
+                if v == "":
+                    continue
+            cleaned[k] = v
+        return cleaned
 
     # Server settings
     host: str = "0.0.0.0"

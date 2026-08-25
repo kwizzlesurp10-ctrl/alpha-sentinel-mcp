@@ -1,4 +1,4 @@
-"""Vercel FastAPI entry with hard boot-error surface."""
+"""Vercel FastAPI entry — Alpha Sentinel API + Mission Control SPA."""
 from __future__ import annotations
 
 import sys
@@ -8,8 +8,6 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
-
-_boot_error: str | None = None
 
 try:
     from app.application import app as _app
@@ -26,7 +24,6 @@ try:
     if _ASSETS.is_dir():
         app.mount("/assets", StaticFiles(directory=str(_ASSETS)), name="assets")
 
-    # Only register SPA root if not already taken
     @app.get("/", include_in_schema=False)
     async def mission_control_root():
         if _INDEX.is_file():
@@ -45,10 +42,13 @@ except Exception:  # pragma: no cover
 
     app = FastAPI(title="Alpha Sentinel BOOT FAILED")
 
-    @app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])
+    @app.api_route(
+        "/{full_path:path}",
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
+    )
     async def boot_failed(request: Request, full_path: str = ""):
         return {
             "error": "boot_failed",
             "path": request.url.path,
-            "detail": (_boot_error or "")[:6000],
+            "detail": _boot_error[:6000],
         }
