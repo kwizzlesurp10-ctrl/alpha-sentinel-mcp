@@ -1,2 +1,1 @@
-# Minimal deps for bootstrap handler
-fastapi>=0.115.0,<1.0.0
+fastapi==0.115.12
