@@ -1,11 +1,7 @@
-"""Vercel Python entrypoint (also used by catch-all).
-
-Exports FastAPI `app` for the Vercel Python ASGI runtime.
-"""
+"""Catch-all under /api/* — same FastAPI app as index.py."""
 from __future__ import annotations
 
 import sys
-import traceback
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent.parent
@@ -15,7 +11,7 @@ if str(_ROOT) not in sys.path:
 try:
     from app.main import app  # noqa: F401
 except Exception as boot_err:  # pragma: no cover
-    # Never fail cold-start silently — expose boot error on every request.
+    import traceback
     from fastapi import FastAPI
 
     app = FastAPI(title="Alpha Sentinel BOOT FAILED")
@@ -23,8 +19,4 @@ except Exception as boot_err:  # pragma: no cover
 
     @app.api_route("/{full_path:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])
     async def _boot_failed(full_path: str = ""):
-        return {
-            "error": "boot_failed",
-            "detail": _detail[:4000],
-            "path": full_path,
-        }
+        return {"error": "boot_failed", "detail": _detail[:4000], "path": full_path}

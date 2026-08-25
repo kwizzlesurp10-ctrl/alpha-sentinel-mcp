@@ -1,5 +1,6 @@
-/** Same-origin by default (Vercel SPA + /api rewrites). Override with VITE_API_URL. */
-export const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") || "";
+/** Same-origin API under /api/* (Vercel Python function). */
+export const API_BASE =
+  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") || "/api";
 
 export type StatsResponse = {
   total_agents: number;
@@ -50,12 +51,13 @@ export type WalletResponse = {
 };
 
 async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
+  const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+  const res = await fetch(url, {
     headers: { Accept: "application/json" },
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`${path} → ${res.status}${text ? `: ${text.slice(0, 160)}` : ""}`);
+    throw new Error(`${path} → ${res.status}${text ? `: ${text.slice(0, 200)}` : ""}`);
   }
   return res.json() as Promise<T>;
 }

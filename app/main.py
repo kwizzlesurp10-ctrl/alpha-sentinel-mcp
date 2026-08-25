@@ -9,6 +9,7 @@ from typing import Literal
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.routing import APIRouter
 
 from app.agent_surface import agent_card, paid_resources
 from app.commerce import CommerceLayer
@@ -72,43 +73,57 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _strip_api_prefix(path: str) -> str:
-    """Normalize Vercel rewrite paths that arrive as /api/..."""
-    if path == "/api":
-        return "/"
-    if path.startswith("/api/"):
-        return path[4:]
-    return path
-
-
 @app.middleware("http")
 async def normalize_vercel_api_path(request: Request, call_next):
-    """Map /api/* → /* so FastAPI routes work behind Vercel rewrites."""
-    path = request.scope.get("path", "")
-    normalized = _strip_api_prefix(path)
-    if normalized != path:
-        request.scope["path"] = normalized
-        # raw_path is bytes in ASGI
-        request.scope["raw_path"] = normalized.encode("utf-8")
+    """Map Vercel function paths so routes resolve under /api/* and bare /*.
+
+    Vercel may present:
+      - /api
+      - /api/health
+      - /health (via rewrite)
+      - /index / /index.py quirks
+    """
+    path = request.scope.get("path", "") or "/"
+
+    # Strip accidental script suffixes
+    for junk in ("/index.py", "/index"):
+        if path.endswith(junk):
+            path = path[: -len(junk)] or "/"
+
+    # If path is exactly the function root, treat as /
+    if path in ("/api", "/api/"):
+        path = "/"
+    elif path.startswith("/api/"):
+        # Keep /api/* as-is (routes are registered with /api prefix too)
+        # Also expose bare path twin via duplicate router — no strip needed.
+        pass
+
+    if path != request.scope.get("path"):
+        request.scope["path"] = path
+        request.scope["raw_path"] = path.encode("utf-8")
+
     return await call_next(request)
 
 
-@app.get("/")
+api = APIRouter(tags=["alpha-sentinel"])
+
+
+@api.get("/")
 async def root():
     return {
         "service": "Alpha Sentinel MCP Server",
         "version": "0.2.0",
         "status": "operational",
         "tools_count": TOOL_COUNT,
-        "documentation": "/docs",
+        "documentation": "/api/docs",
         "mission_control": "/",
         "agent_card": "/.well-known/agent-card.json",
         "mcp_manifest": "/.well-known/mcp",
-        "health": "/health",
+        "health": "/api/health",
     }
 
 
-@app.get("/health")
+@api.get("/health")
 async def health_check():
     x402_status = await x402_services.status() if x402_services else {"enabled": False}
     return {
@@ -124,7 +139,7 @@ async def health_check():
     }
 
 
-@app.get("/doctor")
+@api.get("/doctor")
 async def doctor():
     """Ops readiness checks for Mission Control."""
     checks = []
@@ -170,7 +185,6 @@ async def doctor():
         }
     )
 
-    # Live CoinGecko probe (non-fatal)
     cg_ok = False
     cg_msg = "not probed"
     try:
@@ -204,12 +218,7 @@ async def doctor():
     return {"status": worst, "timestamp": _now_iso(), "checks": checks}
 
 
-# ============================================================================
-# MCP Tool Endpoints (HTTP)
-# ============================================================================
-
-
-@app.api_route("/tools/fetch_price", methods=["GET", "POST"])
+@api.api_route("/tools/fetch_price", methods=["GET", "POST"])
 async def http_fetch_price(
     symbol: str = Query(..., description="Crypto symbol (e.g., btc, eth)"),
 ):
@@ -223,7 +232,7 @@ async def http_fetch_price(
         raise HTTPException(status_code=502, detail=str(e)) from e
 
 
-@app.api_route("/tools/analyze_volatility", methods=["GET", "POST"])
+@api.api_route("/tools/analyze_volatility", methods=["GET", "POST"])
 async def http_analyze_volatility(
     symbol: str = Query(...),
     window_minutes: int = Query(default=60, ge=1, le=1440),
@@ -236,7 +245,7 @@ async def http_analyze_volatility(
         raise HTTPException(status_code=502, detail=str(e)) from e
 
 
-@app.api_route("/tools/aggregate_sentiment", methods=["GET", "POST"])
+@api.api_route("/tools/aggregate_sentiment", methods=["GET", "POST"])
 async def http_aggregate_sentiment(
     symbols: list[str] = Query(default=["btc", "eth"]),
     sources: list[str] = Query(default=["twitter", "reddit"]),
@@ -249,7 +258,7 @@ async def http_aggregate_sentiment(
         raise HTTPException(status_code=502, detail=str(e)) from e
 
 
-@app.api_route("/tools/calculate_risk", methods=["GET", "POST"])
+@api.api_route("/tools/calculate_risk", methods=["GET", "POST"])
 async def http_calculate_risk(
     symbols: list[str] = Query(default=["btc", "eth"]),
     include_factors: list[str] = Query(default=["volatility", "liquidity", "correlation"]),
@@ -261,7 +270,7 @@ async def http_calculate_risk(
         raise HTTPException(status_code=502, detail=str(e)) from e
 
 
-@app.api_route("/tools/generate_report", methods=["GET", "POST"])
+@api.api_route("/tools/generate_report", methods=["GET", "POST"])
 async def http_generate_report(
     report_type: Literal["daily", "weekly", "monthly"] = Query(default="daily"),
     symbols: list[str] = Query(default=["btc", "eth"]),
@@ -274,17 +283,12 @@ async def http_generate_report(
         raise HTTPException(status_code=502, detail=str(e)) from e
 
 
-# ============================================================================
-# Discovery
-# ============================================================================
-
-
-@app.get("/.well-known/agent-card.json")
+@api.get("/.well-known/agent-card.json")
 async def agent_card_endpoint():
     return agent_card()
 
 
-@app.get("/.well-known/mcp")
+@api.get("/.well-known/mcp")
 async def mcp_manifest():
     manifest = {
         "mcpServers": {
@@ -305,22 +309,17 @@ async def mcp_manifest():
             for t in TOOL_SPECS
         ],
         "count": TOOL_COUNT,
-        "http_base": "/tools",
+        "http_base": "/api/tools",
     }
     return JSONResponse(content=manifest)
 
 
-@app.get("/.well-known/paid-resources")
+@api.get("/.well-known/paid-resources")
 async def paid_resources_endpoint():
     return paid_resources()
 
 
-# ============================================================================
-# Commerce & ops
-# ============================================================================
-
-
-@app.get("/quota/{agent_id}")
+@api.get("/quota/{agent_id}")
 async def get_quota(agent_id: str):
     quota = commerce_layer.get_quota(agent_id)
     return {
@@ -334,7 +333,7 @@ async def get_quota(agent_id: str):
     }
 
 
-@app.get("/stats")
+@api.get("/stats")
 async def get_stats():
     stats = commerce_layer.get_stats()
     commerce_status = commerce_layer.status()
@@ -361,7 +360,7 @@ async def get_stats():
     }
 
 
-@app.get("/pulse")
+@api.get("/pulse")
 async def get_pulse_report(block_depth: int = Query(default=12, ge=1, le=100)):
     try:
         from app.pulse import generate_pulse_report  # optional module
@@ -379,7 +378,7 @@ async def get_pulse_report(block_depth: int = Query(default=12, ge=1, le=100)):
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.get("/ledger/{name}")
+@api.get("/ledger/{name}")
 async def get_ledger(name: str):
     if name not in ["spend", "revenue"]:
         raise HTTPException(status_code=400, detail="name must be 'spend' or 'revenue'")
@@ -391,32 +390,28 @@ async def get_ledger(name: str):
         return {"name": name, "count": 0, "entries": []}
 
 
-@app.get("/wallet")
+@api.get("/wallet")
 async def get_wallet_info():
     addr = settings.x402_pay_to_address
     return {
         "seller_receive_address": (addr[:10] + "…") if addr and len(addr) > 10 else addr,
-        "seller_receive_address_full": addr,  # public receive address only
+        "seller_receive_address_full": addr,
         "buyer_address": "configured" if settings.evm_private_key else "not configured",
         "network": settings.x402_default_network,
         "pay_to_configured": bool(addr),
     }
 
 
-@app.get("/swarm/stats")
+@api.get("/swarm/stats")
 async def get_swarm_stats():
     if not settings.swarm_enabled:
         return {"enabled": False, "message": "Swarm agency disabled"}
     return {"enabled": True, "message": "Swarm module not loaded in serverless build"}
 
 
-@app.on_event("startup")
-async def startup_event():
-    logger.info("Alpha Sentinel starting (tools=%s)", TOOL_COUNT)
-    if settings.x402_pay_to_address:
-        logger.info("Seller address configured: %s…", settings.x402_pay_to_address[:10])
-    else:
-        logger.warning("X402_PAY_TO_ADDRESS not set")
+# Register routes at root (local + bare rewrites) AND under /api (Vercel function paths)
+app.include_router(api)
+app.include_router(api, prefix="/api")
 
 
 if __name__ == "__main__":

@@ -7,8 +7,11 @@
   "functions": {
     "api/index.py": {
       "maxDuration": 60,
-      "memory": 1024,
-      "includeFiles": "app/**"
+      "includeFiles": "{app/**,requirements.txt}"
+    },
+    "api/[...path].py": {
+      "maxDuration": 60,
+      "includeFiles": "{app/**,requirements.txt}"
     }
   },
   "rewrites": [
@@ -17,17 +20,15 @@
     { "source": "/doctor", "destination": "/api/doctor" },
     { "source": "/wallet", "destination": "/api/wallet" },
     { "source": "/pulse", "destination": "/api/pulse" },
-    { "source": "/docs", "destination": "/api/docs" },
-    { "source": "/docs/(.*)", "destination": "/api/docs/$1" },
-    { "source": "/redoc", "destination": "/api/redoc" },
-    { "source": "/openapi.json", "destination": "/api/openapi.json" },
     { "source": "/tools/(.*)", "destination": "/api/tools/$1" },
     { "source": "/quota/(.*)", "destination": "/api/quota/$1" },
     { "source": "/ledger/(.*)", "destination": "/api/ledger/$1" },
     { "source": "/swarm/(.*)", "destination": "/api/swarm/$1" },
     { "source": "/.well-known/(.*)", "destination": "/api/.well-known/$1" },
-    { "source": "/api", "destination": "/api" },
-    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/docs", "destination": "/api/docs" },
+    { "source": "/docs/(.*)", "destination": "/api/docs/$1" },
+    { "source": "/redoc", "destination": "/api/redoc" },
+    { "source": "/openapi.json", "destination": "/api/openapi.json" },
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ],
   "headers": [
