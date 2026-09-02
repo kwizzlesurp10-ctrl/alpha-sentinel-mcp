@@ -1,0 +1,12 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "name": "io.github.kwizzlesurp10-ctrl/alpha-sentinel-mcp",
+  "description": "Alpha Sentinel market intelligence MCP: fetch_price, volatility, sentiment, risk, reports. x402/AgentCash USDC on Base. Streamable HTTP.",
+  "version": "0.2.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://alpha-sentinel-mcp.vercel.app/mcp"
+    }
+  ]
+}

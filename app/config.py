@@ -111,6 +111,7 @@ class Settings(BaseSettings):
     revenue_network: str | None = None
     x402_default_price: str = "$0.01"
     x402_http_timeout: float = 90.0
+    x402_facilitator_url: str = "https://x402.org/facilitator"
 
     bazaar_discoverable: bool = True
     bazaar_service_name: str = "Alpha Sentinel Market Intelligence"

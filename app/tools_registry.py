@@ -246,6 +246,20 @@ TOOL_PRICES = {
     "generate_market_report": "$0.15",
 }
 
+# Canonical HTTP paths (1:1 with tool names). Legacy aliases stay accepted.
+TOOL_HTTP_PATHS = {
+    "fetch_price": "/tools/fetch_price",
+    "analyze_volatility": "/tools/analyze_volatility",
+    "aggregate_sentiment": "/tools/aggregate_sentiment",
+    "calculate_risk_score": "/tools/calculate_risk_score",
+    "generate_market_report": "/tools/generate_market_report",
+}
+
+TOOL_HTTP_ALIASES = {
+    "/tools/calculate_risk": "calculate_risk_score",
+    "/tools/generate_report": "generate_market_report",
+}
+
 
 def get_tool_price(tool_name: str) -> str:
     """Get price for a specific tool."""
@@ -284,6 +298,17 @@ def get_tool_spec(tool_name: str) -> dict | None:
         if spec["name"] == tool_name:
             return spec
     return None
+
+
+def http_path_to_tool(path: str) -> str | None:
+    """Map an HTTP path (with or without /api prefix) to a registry tool name."""
+    bare = (path or "").split("?")[0]
+    if bare.startswith("/api/"):
+        bare = bare[4:] or "/"
+    for name, mapped in TOOL_HTTP_PATHS.items():
+        if bare == mapped:
+            return name
+    return TOOL_HTTP_ALIASES.get(bare)
 
 
 def list_all_tools() -> list[str]:
