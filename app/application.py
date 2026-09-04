@@ -141,7 +141,10 @@ api = APIRouter(tags=["alpha-sentinel"])
 
 @api.get("/health")
 async def health_check():
+    from app.redis_client import ping as redis_ping
+
     x402_status = await x402_services.status() if x402_services else {"enabled": False}
+    redis_status = await redis_ping()
     return {
         "status": "healthy",
         "service": "alpha-sentinel-api",
@@ -151,6 +154,7 @@ async def health_check():
             "api": "running",
             "commerce": commerce_layer.status(),
             "x402": x402_status,
+            "redis": redis_status,
         },
     }
 
@@ -198,6 +202,22 @@ async def doctor():
             "name": "Tool registry",
             "status": "pass" if TOOL_COUNT >= 5 else "fail",
             "message": f"{TOOL_COUNT} tools registered ({len(FREE_TOOLS)} free)",
+        }
+    )
+
+    from app.redis_client import ping as redis_ping
+
+    redis_status = await redis_ping()
+    redis_ok = bool(redis_status.get("ok"))
+    checks.append(
+        {
+            "id": "redis",
+            "name": "Upstash Redis",
+            "status": "pass" if redis_ok else ("fail" if redis_status.get("enabled") else "warn"),
+            "message": "PONG"
+            if redis_ok
+            else redis_status.get("reason") or redis_status.get("error") or "not configured",
+            "fix": "Install via `vercel integration add upstash/upstash-kv --plan free`",
         }
     )
 

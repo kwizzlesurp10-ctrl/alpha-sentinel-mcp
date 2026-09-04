@@ -16,7 +16,7 @@ def parse_price(val: str | float) -> float:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=(".env", ".env.local"), extra="ignore")
 
     # Drop empty-string env vars so field defaults apply (Vercel often sets "").
     @model_validator(mode="before")
@@ -87,6 +87,10 @@ class Settings(BaseSettings):
 
     operator_token: str | None = None
     redis_url: str | None = None
+    kv_url: str | None = None
+    kv_rest_api_url: str | None = None
+    kv_rest_api_token: str | None = None
+    kv_rest_api_read_only_token: str | None = None
 
     evm_private_key: str | None = None
     key_provider: str = "env"

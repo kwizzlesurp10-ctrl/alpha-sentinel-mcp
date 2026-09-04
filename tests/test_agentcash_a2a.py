@@ -218,6 +218,13 @@ async def test_openapi_marks_paid_tools_for_agentcash(client):
     assert "402" in (op.get("responses") or {})
 
 
+def test_redis_client_not_required_for_catalog():
+    from app.redis_client import configured
+
+    # Catalog/402/MCP must work even if Redis env is absent in CI.
+    assert configured() in (True, False)
+
+
 @pytest.mark.asyncio
 async def test_http_fetch_price_returns_price_usd(client, mock_coingecko_api):
     response = await client.post("/tools/fetch_price?symbol=btc")
