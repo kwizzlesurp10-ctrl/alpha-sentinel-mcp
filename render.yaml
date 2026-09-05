@@ -1,6 +1,7 @@
 services:
   - type: web
     name: alpha-sentinel-api
+    repo: https://github.com/kwizzlesurp10-ctrl/alpha-sentinel-mcp
     runtime: python
     plan: starter
     region: oregon
