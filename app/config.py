@@ -109,6 +109,9 @@ class Settings(BaseSettings):
     cdp_api_key_id: str | None = None
     cdp_api_key_secret: str | None = None
     cdp_facilitator_url: str = "https://api.cdp.coinbase.com/platform/v2/x402"
+    cdp_discovery_search_url: str = (
+        "https://api.cdp.coinbase.com/platform/v2/x402/discovery/search"
+    )
     cdp_networks: str = "eip155:8453"
 
     x402_default_network: str = "eip155:8453"

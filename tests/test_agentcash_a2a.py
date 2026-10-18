@@ -99,8 +99,9 @@ async def test_paid_header_skips_402(client):
         "/tools/analyze_volatility?symbol=btc",
         headers={"PAYMENT-SIGNATURE": "test-proof"},
     )
-    # Handler runs; CoinGecko may 502 without mock — not a 402.
-    assert response.status_code != 402
+    # Bogus signature must fail closed (402), not execute the paid handler.
+    assert response.status_code == 402
+    assert response.json().get("error") or response.json().get("invalid_reason")
 
 
 @pytest.mark.asyncio

@@ -185,39 +185,51 @@ async def calculate_risk_score_endpoint(
         if include_factors is None:
             include_factors = ["volatility", "liquidity", "correlation"]
         
-        # Simulated risk assessments (replace with real data in production)
-        import random
-        
+        from app.intelligence.price_feed import fetch_price_from_coingecko, get_price_history
+        from app.intelligence.volatility import calculate_z_score
+
         risk_assessments = {}
-        
+
         for symbol in symbols:
-            # Generate realistic risk data
-            base_volatility = random.uniform(1.5, 4.0)  # Typical z-scores
-            
-            # Estimate market cap tier from symbol popularity
-            popular_large = ["bitcoin", "ethereum", "solana", "binancecoin"]
-            popular_mid = ["cardano", "polkadot", "ripple", "dogecoin"]
-            
-            if symbol.lower() in popular_large:
+            history = await get_price_history(symbol, days=7)
+            prices = [float(p["price"]) for p in history if p.get("price")]
+            vol = calculate_z_score(prices, threshold=settings.volatility_z_score_threshold)
+            max_z = max((abs(z) for z in vol.get("z_scores") or [0.0]), default=0.0)
+
+            price_row = await fetch_price_from_coingecko(symbol)
+            volume = float(price_row.get("volume_24h") or 0.0)
+            liquidity = min(1.0, volume / 5_000_000_000.0) if volume > 0 else 0.35
+
+            sym = symbol.lower()
+            if sym in ("bitcoin", "btc", "ethereum", "eth", "solana", "sol"):
                 market_cap = "large"
-                liquidity = random.uniform(0.8, 1.0)
-            elif symbol.lower() in popular_mid:
+            elif sym in ("cardano", "ada", "polkadot", "dot", "ripple", "xrp"):
                 market_cap = "mid"
-                liquidity = random.uniform(0.6, 0.8)
             else:
                 market_cap = "small"
-                liquidity = random.uniform(0.3, 0.6)
-            
-            correlation = random.uniform(0.5, 0.95)  # Crypto correlations are high
-            
-            # Calculate risk
+
+            btc_hist = await get_price_history("btc", days=7)
+            btc_prices = [float(p["price"]) for p in btc_hist if p.get("price")]
+            correlation = 0.7
+            n = min(len(prices), len(btc_prices))
+            if n > 2:
+                a = prices[-n:]
+                b = btc_prices[-n:]
+                mean_a = sum(a) / n
+                mean_b = sum(b) / n
+                cov = sum((x - mean_a) * (y - mean_b) for x, y in zip(a, b)) / (n - 1)
+                var_a = sum((x - mean_a) ** 2 for x in a) / (n - 1)
+                var_b = sum((y - mean_b) ** 2 for y in b) / (n - 1)
+                denom = (var_a * var_b) ** 0.5
+                if denom > 0:
+                    correlation = max(-1.0, min(1.0, cov / denom))
+
             risk_data = calculate_risk_factors(
-                volatility_score=base_volatility,
+                volatility_score=max_z,
                 liquidity_estimate=liquidity,
                 market_cap_tier=market_cap,
-                correlation_btc=correlation,
+                correlation_btc=float(correlation),
             )
-            
             risk_assessments[symbol] = risk_data
         
         # Calculate portfolio-level risk (if multiple symbols)

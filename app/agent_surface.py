@@ -87,11 +87,16 @@ def agent_card() -> dict[str, Any]:
     """
     base = _base()
     network = settlement_network()
+    from app.tools_registry import TOOL_PRICES
+
     skills = [
         {
             "id": spec["name"],
             "name": spec["name"],
             "description": spec["description"].strip(),
+            "price_usdc": "free"
+            if spec["tier_access"].get("free")
+            else TOOL_PRICES.get(spec["name"], "$0.01"),
             "tags": ["crypto", "market-intelligence", "x402", "agentcash", "base", "a2a"],
             "inputModes": ["application/json", "text/plain"],
             "outputModes": ["application/json"],

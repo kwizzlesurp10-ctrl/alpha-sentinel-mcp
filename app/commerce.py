@@ -191,11 +191,15 @@ async def verify_x402_payment(
     # 3. Record spend in ledger
     # 4. Deduct from quota
     
-    logger.info(f"Verifying x402 payment for agent {agent_id}: {resource_url}")
-    
-    # TODO: Implement actual blockchain verification
-    # For now, simulate successful verification
-    return True
+    logger.info("Verifying x402 payment for agent %s: %s", agent_id, resource_url)
+    from app.x402_services import verify_and_settle_from_headers
+
+    sig = challenge_response.get("payment_signature") or challenge_response.get("signature")
+    required = challenge_response.get("payment_required")
+    if not sig or not required:
+        return False
+    result = await verify_and_settle_from_headers(str(sig), str(required))
+    return bool(result.get("is_valid") and result.get("payment_settled"))
 
 
 def calculate_cost_for_tool(tool_name: str, num_calls: int = 1) -> float:

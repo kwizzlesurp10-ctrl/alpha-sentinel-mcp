@@ -25,6 +25,12 @@ PUBLIC_FREE_PATHS = {
     "/mcp",
     "/mcp/mcp",
     "/a2a",
+    "/tools/analyze_volatility/sample",
+    "/tools/aggregate_sentiment/sample",
+    "/tools/calculate_risk/sample",
+    "/tools/calculate_risk_score/sample",
+    "/tools/generate_report/sample",
+    "/tools/generate_market_report/sample",
 }
 
 

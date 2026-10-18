@@ -109,6 +109,10 @@ async def generate_market_report_endpoint(
         # Generate executive summary
         exec_summary = generate_executive_summary(intelligence_bundle, report_type)
         
+        import time as _time
+
+        started = _time.perf_counter()
+
         # Calculate total cost
         total_cost = (
             settings.price_feed_price_usd * len(symbols) +
@@ -132,7 +136,7 @@ async def generate_market_report_endpoint(
                 "total_symbols_analyzed": len(symbols),
                 "cost_usd": round(total_cost, 2),
                 "data_sources": ["coingecko", "twitter", "reddit"],
-                "processing_time_seconds": 2.5,  # Simulated
+                "processing_time_seconds": round(_time.perf_counter() - started, 3),
             },
             "format_requested": format,
             "cost_usd": total_cost,
