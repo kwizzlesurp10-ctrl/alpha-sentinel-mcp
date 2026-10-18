@@ -91,7 +91,7 @@ async def test_wallet_info(client):
 
 from app.intelligence.price_feed import validate_symbol
 from app.intelligence.volatility import calculate_z_score
-from app.intelligence.risk import classify_volatility
+from app.intelligence.volatility import classify_volatility
 
 
 def test_validate_symbol():
