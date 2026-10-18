@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import field_validator, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -88,8 +88,14 @@ class Settings(BaseSettings):
     operator_token: str | None = None
     redis_url: str | None = None
     kv_url: str | None = None
-    kv_rest_api_url: str | None = None
-    kv_rest_api_token: str | None = None
+    kv_rest_api_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("KV_REST_API_URL", "UPSTASH_REDIS_REST_URL"),
+    )
+    kv_rest_api_token: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("KV_REST_API_TOKEN", "UPSTASH_REDIS_REST_TOKEN"),
+    )
     kv_rest_api_read_only_token: str | None = None
 
     evm_private_key: str | None = None

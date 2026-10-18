@@ -1,4 +1,4 @@
-"""Settlement tx replay guard (in-memory; survives only within one instance)."""
+"""In-memory tx replay guard (local/test fallback only)."""
 
 from __future__ import annotations
 

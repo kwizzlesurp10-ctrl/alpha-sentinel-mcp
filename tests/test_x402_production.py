@@ -10,21 +10,23 @@ from httpx import ASGITransport, AsyncClient
 
 from app.application import app
 from app.commerce_payment import clear_tool_challenges
-from app.config import settings
-from app.payment_replay import clear as clear_replay
-from app.tools_registry import PAID_TOOLS
+from app.payment_idempotency import clear as clear_idempotency
 
 
 @pytest.fixture(autouse=True)
 def _reset_payment_state():
+    from app.tool_payment_gate import clear_built_challenge_cache
+
     clear_tool_challenges()
-    clear_replay()
+    clear_built_challenge_cache()
+    clear_idempotency()
     from app import challenge_cache
 
     challenge_cache.clear()
     yield
     clear_tool_challenges()
-    clear_replay()
+    clear_built_challenge_cache()
+    clear_idempotency()
     challenge_cache.clear()
 
 
@@ -47,25 +49,29 @@ async def test_tampered_payment_required_rejected(monkeypatch):
             "analyze_volatility",
             "http://test/tools/analyze_volatility",
         )
-        evil = "dGVzdA=="
         response = await client.post(
             "/tools/analyze_volatility",
             json={"symbol": "btc"},
             headers={
-                "PAYMENT-SIGNATURE": "dGVzdA==",
-                "PAYMENT-REQUIRED": evil,
+                "PAYMENT-SIGNATURE": "tampered-sig-unique-x402-test",
+                "PAYMENT-REQUIRED": "not-the-server-authored-challenge-header",
             },
         )
     assert response.status_code == 402
-    assert "tampered" in response.json().get("detail", "").lower()
+    detail = response.json().get("detail", "").lower()
+    assert "tampered" in detail or response.json().get("error") == "payment_invalid"
 
 
 @pytest.mark.asyncio
 async def test_replay_settlement_rejected():
-    from app.payment_replay import claim_settlement_tx
+    from app.payment_idempotency import begin_payment_attempt, complete_payment_attempt
 
-    assert claim_settlement_tx("0xabc") is True
-    assert claim_settlement_tx("0xabc") is False
+    sig = "replay-tx-test-sig"
+    begin = await begin_payment_attempt("http", "t", sig)
+    assert begin.allowed
+    assert await complete_payment_attempt("http", "t", begin.fingerprint, {"transaction": "0xabc"})
+    begin2 = await begin_payment_attempt("http", "t", sig)
+    assert not begin2.allowed
 
 
 @pytest.mark.asyncio

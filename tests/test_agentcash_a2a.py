@@ -139,7 +139,7 @@ async def test_well_known_mcp_advertises_remote_http_url(client):
         "alpha-sentinel", {}
     ).get("url")
     assert url
-    assert url.startswith("http") or url.startswith("/")
+    assert url.startswith(("http", "/"))
     assert "mcp" in url
 
 

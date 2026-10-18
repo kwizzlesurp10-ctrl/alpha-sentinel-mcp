@@ -138,7 +138,7 @@ make up  # API (8403) + dashboard (5174)
 | `PUBLIC_BASE_URL` | **yes** | `https://alpha-sentinel-mcp.vercel.app` |
 | `OPERATOR_TOKEN` | recommended | Protects `/ledger/*`; cross-agent `/quota` |
 | `COINGECKO_API_KEY` | optional | Higher CoinGecko rate limits |
-| `KV_REST_API_URL` / `KV_REST_API_TOKEN` | optional | Upstash for health ping + future challenge persistence |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_*`) | **yes** on mainnet/prod | Payment idempotency + settlement replay guard (SET NX, 24h TTL) |
 | `X_API_KEY` / `REDDIT_*` | optional | Reserved; sentiment uses Fear & Greed macro proxy today |
 
 Never set `EVM_PRIVATE_KEY` on the server (buyer key stays local).

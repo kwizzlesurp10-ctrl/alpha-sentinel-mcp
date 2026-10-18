@@ -165,7 +165,6 @@ async def execute_paid_mcp_tool(
 
     from x402.http import encode_payment_signature_header
 
-    from app import x402_services
 
     try:
         sig = encode_payment_signature_header(payment_body)
@@ -179,11 +178,32 @@ async def execute_paid_mcp_tool(
     pr = PaymentRequired(x402_version=2, accepts=list(accepts), error=f"Alpha Sentinel {tool_name}")
     required_header = encode_payment_required_header(pr)
 
-    result = await x402_services.verify_and_settle_from_headers(sig, required_header)
-    if not result.get("is_valid") or not result.get("payment_settled"):
+    from app.payment_idempotency import (
+        IdempotencyStoreRequired,
+        idempotency_unavailable_response,
+        verify_settle_with_idempotency,
+    )
+
+    try:
+        result = await verify_settle_with_idempotency(
+            "mcp", tool_name, sig, required_header
+        )
+    except IdempotencyStoreRequired:
+        err = idempotency_unavailable_response()
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": json.dumps(err)}],
+            "structuredContent": err,
+        }
+
+    if result.get("idempotency_blocked") or not result.get("is_valid") or not result.get(
+        "payment_settled"
+    ):
         sc = payment_required_structured_content(tool_name)
-        sc["invalid_reason"] = result.get("invalid_reason")
+        sc["invalid_reason"] = result.get("invalid_reason") or result.get("reason")
         sc["settlement_error"] = result.get("settlement_error")
+        if result.get("idempotency_blocked"):
+            sc["error"] = "replay_rejected"
         return {
             "isError": True,
             "content": [{"type": "text", "text": json.dumps(sc)}],

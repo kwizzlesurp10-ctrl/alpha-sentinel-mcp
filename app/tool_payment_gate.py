@@ -18,13 +18,21 @@ from app.commerce_payment import (
 )
 from app.config import settings
 from app.models import BuildSellerRequirementsInput
-from app.payment_replay import claim_settlement_tx
+from app.payment_idempotency import (
+    IdempotencyStoreRequired,
+    idempotency_unavailable_response,
+    verify_settle_with_idempotency,
+)
 from app.payments import TOOL_PRICES
 from app.tools_registry import PAID_TOOLS, get_tool_spec
 
 logger = logging.getLogger(__name__)
 
 _built_by_fp: dict[str, dict[str, Any]] = {}
+
+
+def clear_built_challenge_cache() -> None:
+    _built_by_fp.clear()
 
 
 def _tool_discovery_example(tool_name: str) -> dict[str, Any]:
@@ -66,6 +74,7 @@ async def build_tool_challenge(tool_name: str, resource_url: str) -> dict[str, A
     )
     cached = _built_by_fp.get(fp)
     if cached:
+        store_tool_challenge(tool_name, resource_url, cached)
         return cached
 
     built = x402_services.build_seller_requirements(
@@ -209,7 +218,27 @@ async def handle_paid_tool_request(
             headers={"PAYMENT-REQUIRED": auth_header},
         )
 
-    result = await x402_services.verify_and_settle_from_headers(sig, auth_header)
+    try:
+        result = await verify_settle_with_idempotency(
+            "http", tool_name, sig, auth_header
+        )
+    except IdempotencyStoreRequired:
+        return JSONResponse(
+            status_code=503,
+            headers={"Retry-After": "120"},
+            content=idempotency_unavailable_response(),
+        )
+
+    if result.get("idempotency_blocked"):
+        return JSONResponse(
+            status_code=402,
+            content={
+                "error": "replay_rejected",
+                "detail": result.get("reason"),
+            },
+            headers={"PAYMENT-REQUIRED": auth_header},
+        )
+
     if not result.get("is_valid"):
         return JSONResponse(
             status_code=402,
@@ -221,18 +250,6 @@ async def handle_paid_tool_request(
         )
 
     settlement = result.get("settlement") or {}
-    if result.get("payment_settled"):
-        tx = (
-            settlement.get("transaction")
-            or settlement.get("tx_hash")
-            or settlement.get("txHash")
-        )
-        if not claim_settlement_tx(str(tx) if tx else None):
-            return JSONResponse(
-                status_code=402,
-                content={"error": "replay_rejected", "detail": "settlement tx already used"},
-                headers={"PAYMENT-REQUIRED": auth_header},
-            )
 
     request.state.x402_settlement = settlement
     request.state.x402_payment_settled = bool(result.get("payment_settled"))
