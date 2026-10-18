@@ -46,7 +46,7 @@ Returns current price, 24h change, and trading volume for any supported cryptocu
             "required": ["symbol"],
         },
         "requires_env": False,  # No special credentials needed
-        "tier_access": {"free": True, "pro": True},
+        "tier_access": {"free": False, "pro": True},
     },
     {
         "name": "analyze_volatility",

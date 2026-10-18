@@ -8,6 +8,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.application import app
+from app.config import settings
 from app.kv_store import InMemoryKvStore, set_store_override
 from app.payment_idempotency import (
     IdempotencyStoreRequired,
@@ -93,6 +94,8 @@ async def test_http_paid_fail_closed_503_without_kv(monkeypatch):
     set_store_override(None)
     monkeypatch.setattr("app.redis_client.kv_configured", lambda: False)
     monkeypatch.setenv("VERCEL_ENV", "production")
+    monkeypatch.setattr(settings, "cdp_api_key_id", "test-cdp-id")
+    monkeypatch.setattr(settings, "cdp_api_key_secret", "test-cdp-secret")
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         await build_tool_challenge(

@@ -1263,13 +1263,21 @@ class X402Services:
     async def status(self) -> dict[str, Any]:
         if not self.enabled:
             return {"enabled": False, "reason": "No seller address configured"}
-        facilitator = "CDP" if _use_cdp(settings.x402_default_network) else "x402.org"
-        if facilitator == "x402.org" and settings.x402_default_network == "eip155:8453":
+        network = resolve_revenue_network()
+        on_base_mainnet = network == "eip155:8453"
+        if _use_cdp(network):
+            facilitator = "CDP"
+        elif on_base_mainnet:
             facilitator = "misconfigured: CDP required for Base mainnet"
+        else:
+            facilitator = "x402.org"
         return {
             "enabled": True,
             "seller_address": f"{(settings.x402_pay_to_address or '')[:10]}...",
-            "network": settings.x402_default_network,
+            "network": network,
             "facilitator": facilitator,
-            "facilitator_url": _facilitator_url_for(settings.x402_default_network),
+            "facilitator_url": _facilitator_url_for(network),
+            "cdp_credentials_configured": bool(
+                settings.cdp_api_key_id and settings.cdp_api_key_secret
+            ),
         }

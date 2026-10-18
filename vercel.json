@@ -24,9 +24,27 @@
     }
   ],
   "rewrites": [
-    {
-      "source": "/(health|doctor|stats|pulse|catalog|wallet|quota/.*|ledger/.*|swarm/.*|llms.txt|openapi.json|docs|redoc|mcp.*|a2a|\\.well-known/.*|tools/.*)",
-      "destination": "/api/index"
-    }
+    { "source": "/api/(.*)", "destination": "/api/index" },
+    { "source": "/health", "destination": "/api/index" },
+    { "source": "/doctor", "destination": "/api/index" },
+    { "source": "/stats", "destination": "/api/index" },
+    { "source": "/pulse", "destination": "/api/index" },
+    { "source": "/catalog", "destination": "/api/index" },
+    { "source": "/wallet", "destination": "/api/index" },
+    { "source": "/quota/:path*", "destination": "/api/index" },
+    { "source": "/ledger/:path*", "destination": "/api/index" },
+    { "source": "/swarm/:path*", "destination": "/api/index" },
+    { "source": "/llms.txt", "destination": "/api/index" },
+    { "source": "/openapi.json", "destination": "/api/index" },
+    { "source": "/docs", "destination": "/api/index" },
+    { "source": "/docs/:path*", "destination": "/api/index" },
+    { "source": "/redoc", "destination": "/api/index" },
+    { "source": "/a2a", "destination": "/api/index" },
+    { "source": "/mcp", "destination": "/api/index" },
+    { "source": "/mcp/", "destination": "/api/index" },
+    { "source": "/mcp/:path*", "destination": "/api/index" },
+    { "source": "/.well-known/:path*", "destination": "/api/index" },
+    { "source": "/tools/:path*", "destination": "/api/index" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
