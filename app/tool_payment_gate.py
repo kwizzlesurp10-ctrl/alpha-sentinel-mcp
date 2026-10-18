@@ -17,6 +17,7 @@ from app.commerce_payment import (
     store_tool_challenge,
 )
 from app.config import settings
+from app.deploy_env import is_vercel_production
 from app.models import BuildSellerRequirementsInput
 from app.payment_idempotency import (
     IdempotencyStoreRequired,
@@ -150,6 +151,18 @@ def settlement_receipt_header(settlement: dict[str, Any] | None) -> str | None:
     return base64.b64encode(json.dumps(settlement).encode()).decode()
 
 
+def _seller_ready_for_settlement() -> tuple[bool, str]:
+    if not (settings.x402_pay_to_address or "").strip():
+        return False, "X402_PAY_TO_ADDRESS is not configured"
+    net = x402_services.resolve_revenue_network()
+    if net == "eip155:8453" and not x402_services._use_cdp(net):
+        return (
+            False,
+            "CDP_API_KEY_ID and CDP_API_KEY_SECRET are required for Base mainnet settlement",
+        )
+    return True, ""
+
+
 async def handle_paid_tool_request(
     request: Request,
     tool_name: str,
@@ -158,6 +171,18 @@ async def handle_paid_tool_request(
     """Return a JSONResponse to short-circuit the request, or None to proceed."""
     if tool_name not in PAID_TOOLS:
         return None
+
+    if is_vercel_production():
+        ready, reason = _seller_ready_for_settlement()
+        if not ready:
+            return JSONResponse(
+                status_code=503,
+                headers={"Retry-After": "120"},
+                content={
+                    "error": "x402_seller_misconfigured",
+                    "detail": reason,
+                },
+            )
 
     try:
         built = await build_tool_challenge(tool_name, resource_url)

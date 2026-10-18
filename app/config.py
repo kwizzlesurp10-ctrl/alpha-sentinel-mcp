@@ -112,8 +112,22 @@ class Settings(BaseSettings):
     reddit_api_id: str | None = None
     reddit_api_secret: str | None = None
 
-    cdp_api_key_id: str | None = None
-    cdp_api_key_secret: str | None = None
+    cdp_api_key_id: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "CDP_API_KEY_ID",
+            "COINBASE_CDP_API_KEY_ID",
+            "CDP_API_KEY_NAME",
+        ),
+    )
+    cdp_api_key_secret: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "CDP_API_KEY_SECRET",
+            "COINBASE_CDP_API_KEY_SECRET",
+            "CDP_API_KEY_PRIVATE_KEY",
+        ),
+    )
     cdp_facilitator_url: str = "https://api.cdp.coinbase.com/platform/v2/x402"
     cdp_discovery_search_url: str = (
         "https://api.cdp.coinbase.com/platform/v2/x402/discovery/search"

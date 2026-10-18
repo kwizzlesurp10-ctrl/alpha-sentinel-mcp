@@ -39,8 +39,9 @@ def initialize_result(client_version: str | None = None) -> dict[str, Any]:
         "capabilities": {"tools": {"listChanged": False}},
         "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
         "instructions": (
-            "Alpha Sentinel market intelligence over x402. fetch_price is free; "
-            "paid tools require USDC on Base (PAYMENT-SIGNATURE / _meta x402/payment)."
+            "Alpha Sentinel market intelligence over x402 on Base. All tools require "
+            "USDC payment (HTTP PAYMENT-SIGNATURE or MCP _meta x402/payment). "
+            "Use /tools/{tool}/sample for rate-limited previews."
         ),
     }
 
@@ -92,6 +93,20 @@ async def _execute_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             str(arguments.get("format") or "json"),
         )
     raise ValueError(f"Unhandled tool: {name}")
+
+
+async def run_tool_sample(name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Execute tool logic for /tools/{name}/sample without x402 (rate-limited at HTTP layer)."""
+    arguments = arguments or {}
+    try:
+        result = await _execute_tool(name, arguments)
+    except Exception as exc:
+        logger.exception("sample tool %s failed", name)
+        return {"isError": True, "content": [{"type": "text", "text": str(exc)}]}
+    return {
+        "content": [{"type": "text", "text": json.dumps(result)}],
+        "structuredContent": result,
+    }
 
 
 async def call_tool(name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:

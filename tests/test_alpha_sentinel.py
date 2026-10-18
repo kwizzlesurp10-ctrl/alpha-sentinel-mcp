@@ -150,7 +150,8 @@ def test_tool_count_consistency():
 
 def test_free_vs_paid_tools():
     """Test free/paid tool categorization."""
-    assert len(FREE_TOOLS) >= 1  # At least fetch_price should be free
+    assert "fetch_price" in PAID_TOOLS
+    assert "fetch_price" not in FREE_TOOLS
     assert len(PAID_TOOLS) >= 1  # Most tools require credits
     assert set(FREE_TOOLS).isdisjoint(set(PAID_TOOLS))  # No overlap
 
@@ -172,13 +173,11 @@ def test_get_tool_spec():
 # ============================================================================
 
 @pytest.mark.asyncio
-async def test_fetch_price_integration(client, mock_coingecko_api):
-    """Test price fetch integration (mocked)."""
+async def test_fetch_price_integration_requires_payment(client, mock_coingecko_api):
+    """Paid HTTP path must not return price data without x402."""
     response = await client.post("/tools/fetch_price?symbol=btc")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["success"] is True
-    assert data["data"]["price_usd"] == 67842.50
+    assert response.status_code == 402
+    assert response.headers.get("PAYMENT-REQUIRED")
 
 
 # ============================================================================

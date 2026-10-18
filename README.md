@@ -145,6 +145,14 @@ Never set `EVM_PRIVATE_KEY` on the server (buyer key stays local).
 
 See `.env.example` for the full list (names only).
 
+**Vercel routing:** Root `vercel.json` rewrites `/health`, `/.well-known/*`, `/mcp`, `/tools/*`, `/llms.txt`, and related API paths to `api/index.py` **before** the Mission Control SPA `index.html` fallback. All intelligence HTTP tools (including `fetch_price`) require x402 payment in production.
+
+**Live smoke (after deploy):**
+```bash
+./scripts/smoke_live_deployment.sh https://alpha-sentinel-mcp.vercel.app
+# or a preview URL from the PR
+```
+
 ## 🔧 Development
 
 ### Running Tests

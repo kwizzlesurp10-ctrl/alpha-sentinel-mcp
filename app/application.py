@@ -127,6 +127,9 @@ async def normalize_vercel_api_path(request: Request, call_next):
         if path.endswith(junk):
             path = path[: -len(junk)] or "/"
 
+    if path.startswith("/api/index"):
+        path = path[len("/api/index") :] or "/"
+
     # If path is exactly the function root, treat as /
     if path in ("/api", "/api/"):
         path = "/"
@@ -298,9 +301,110 @@ async def doctor():
     return {"status": worst, "timestamp": _now_iso(), "checks": checks}
 
 
+SAMPLE_INPUTS: dict[str, dict] = {
+    "fetch_price": {"symbol": "btc"},
+    "analyze_volatility": {"symbol": "btc", "window_minutes": 60, "z_threshold": 2.0},
+    "aggregate_sentiment": {
+        "symbols": ["btc", "eth"],
+        "sources": ["news"],
+        "window_minutes": 60,
+    },
+    "calculate_risk_score": {
+        "symbols": ["btc", "eth"],
+        "include_factors": ["volatility", "liquidity", "correlation"],
+    },
+    "generate_market_report": {
+        "report_type": "daily",
+        "symbols": ["btc", "eth"],
+        "format": "json",
+    },
+}
+
+
+async def _run_tool_sample(tool_name: str) -> dict:
+    cache_key = f"sample:{tool_name}"
+    cached = sample_cache_get(cache_key)
+    if cached is not None:
+        return cached
+
+    args = SAMPLE_INPUTS[tool_name]
+    from app.mcp_http import run_tool_sample
+
+    result = await run_tool_sample(tool_name, args)
+    payload = {
+        "sample": True,
+        "tool": tool_name,
+        "fixed_input": args,
+        "preview": result.get("structuredContent") or result,
+        "upsell": f"Full access: POST /tools/{tool_name.replace('_score', '').replace('generate_market_report', 'generate_report')} with x402 payment",
+    }
+    sample_cache_set(cache_key, payload)
+    return payload
+
+
+@api.api_route("/tools/{tool_name}/sample", methods=["GET", "POST"])
+async def tool_sample(tool_name: str):
+    alias = {
+        "calculate_risk": "calculate_risk_score",
+        "generate_report": "generate_market_report",
+    }.get(tool_name, tool_name)
+    if alias not in SAMPLE_INPUTS:
+        raise HTTPException(status_code=404, detail="unknown tool sample")
+    try:
+        return await _run_tool_sample(alias)
+    except Exception as exc:
+        logger.error("sample failed for %s: %s", tool_name, exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@api.post("/mcp")
+@api.post("/mcp/")
+@api.post("/mcp/mcp")
+async def mcp_jsonrpc(request: Request):
+    """Streamable HTTP MCP JSON-RPC: initialize, tools/list, tools/call."""
+    from app.mcp_http import handle_jsonrpc
+
+    try:
+        payload = await request.json()
+    except Exception as exc:
+        return JSONResponse(
+            status_code=400,
+            content={"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": str(exc)}},
+        )
+    if isinstance(payload, list):
+        results = []
+        for item in payload:
+            if isinstance(item, dict):
+                resp = await handle_jsonrpc(item)
+                if resp is not None:
+                    results.append(resp)
+        return JSONResponse(content=results)
+    if not isinstance(payload, dict):
+        return JSONResponse(
+            status_code=400,
+            content={"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "Invalid Request"}},
+        )
+    resp = await handle_jsonrpc(payload)
+    if resp is None:
+        return JSONResponse(status_code=204, content=None)
+    return JSONResponse(content=resp)
+
+
+@api.get("/mcp")
+@api.get("/mcp/")
+@api.get("/mcp/mcp")
+async def mcp_http_info():
+    return {
+        "transport": "streamable-http",
+        "url": f"{settings.public_base_url.rstrip('/')}/mcp",
+        "protocol": "mcp",
+        "methods": ["initialize", "tools/list", "tools/call"],
+    }
+
+
 @api.api_route("/tools/fetch_price", methods=["GET", "POST"])
 async def http_fetch_price(request: Request):
-    """Free-tier friendly price feed (GET or POST)."""
+    """Paid price feed (x402). Unpaid requests are rejected by middleware."""
     params = await _request_params(request)
     symbol = params.get("symbol")
     if not symbol:
@@ -516,104 +620,6 @@ async def get_swarm_stats():
     if not settings.swarm_enabled:
         return {"enabled": False}
     return {"enabled": True, "status": "not_loaded_in_serverless_build"}
-
-
-SAMPLE_INPUTS: dict[str, dict] = {
-    "analyze_volatility": {"symbol": "btc", "window_minutes": 60, "z_threshold": 2.0},
-    "aggregate_sentiment": {
-        "symbols": ["btc", "eth"],
-        "sources": ["news"],
-        "window_minutes": 60,
-    },
-    "calculate_risk_score": {
-        "symbols": ["btc", "eth"],
-        "include_factors": ["volatility", "liquidity", "correlation"],
-    },
-    "generate_market_report": {
-        "report_type": "daily",
-        "symbols": ["btc", "eth"],
-        "format": "json",
-    },
-}
-
-
-async def _run_tool_sample(tool_name: str) -> dict:
-    cache_key = f"sample:{tool_name}"
-    cached = sample_cache_get(cache_key)
-    if cached is not None:
-        return cached
-
-    args = SAMPLE_INPUTS[tool_name]
-    from app.mcp_http import call_tool
-
-    result = await call_tool(tool_name, args)
-    payload = {
-        "sample": True,
-        "tool": tool_name,
-        "fixed_input": args,
-        "preview": result.get("structuredContent") or result,
-        "upsell": f"Full access: POST /tools/{tool_name.replace('_score', '').replace('generate_market_report', 'generate_report')} with x402 payment",
-    }
-    sample_cache_set(cache_key, payload)
-    return payload
-
-
-@api.api_route("/tools/{tool_name}/sample", methods=["GET", "POST"])
-async def tool_sample(tool_name: str):
-    alias = {
-        "calculate_risk": "calculate_risk_score",
-        "generate_report": "generate_market_report",
-    }.get(tool_name, tool_name)
-    if alias not in SAMPLE_INPUTS:
-        raise HTTPException(status_code=404, detail="unknown tool sample")
-    try:
-        return await _run_tool_sample(alias)
-    except Exception as exc:
-        logger.error("sample failed for %s: %s", tool_name, exc)
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-
-
-@api.post("/mcp")
-@api.post("/mcp/mcp")
-async def mcp_jsonrpc(request: Request):
-    """Streamable HTTP MCP JSON-RPC: initialize, tools/list, tools/call."""
-    from app.mcp_http import handle_jsonrpc
-
-    try:
-        payload = await request.json()
-    except Exception as exc:
-        return JSONResponse(
-            status_code=400,
-            content={"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": str(exc)}},
-        )
-    if isinstance(payload, list):
-        results = []
-        for item in payload:
-            if isinstance(item, dict):
-                resp = await handle_jsonrpc(item)
-                if resp is not None:
-                    results.append(resp)
-        return JSONResponse(content=results)
-    if not isinstance(payload, dict):
-        return JSONResponse(
-            status_code=400,
-            content={"jsonrpc": "2.0", "id": None, "error": {"code": -32600, "message": "Invalid Request"}},
-        )
-    resp = await handle_jsonrpc(payload)
-    if resp is None:
-        return JSONResponse(status_code=204, content=None)
-    return JSONResponse(content=resp)
-
-
-@api.get("/mcp")
-@api.get("/mcp/mcp")
-async def mcp_http_info():
-    return {
-        "transport": "streamable-http",
-        "url": f"{settings.public_base_url.rstrip('/')}/mcp",
-        "protocol": "mcp",
-        "methods": ["initialize", "tools/list", "tools/call"],
-    }
 
 
 @api.post("/a2a")

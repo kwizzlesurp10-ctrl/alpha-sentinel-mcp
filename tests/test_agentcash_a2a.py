@@ -51,7 +51,7 @@ async def test_paid_catalog_lists_paid_tools_with_price_and_network(client):
     assert isinstance(tools, list)
     names = {item["name"] for item in tools}
     assert set(PAID_TOOLS) <= names
-    assert "fetch_price" not in names
+    assert "fetch_price" in names
     for item in tools:
         assert item["url"]
         assert item["method"]
@@ -227,9 +227,10 @@ def test_redis_client_not_required_for_catalog():
 
 
 @pytest.mark.asyncio
-async def test_http_fetch_price_returns_price_usd(client, mock_coingecko_api):
+async def test_http_fetch_price_unpaid_returns_402(client):
     response = await client.post("/tools/fetch_price?symbol=btc")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["success"] is True
-    assert data["data"]["price_usd"] == MOCK_BTC_USD
+    assert response.status_code == 402
+    assert response.headers.get("PAYMENT-REQUIRED")
+    body = response.json()
+    assert body.get("network")
+    assert "fetch_price" in str(body.get("resource") or "")
