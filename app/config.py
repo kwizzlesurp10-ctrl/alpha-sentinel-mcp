@@ -36,7 +36,7 @@ class Settings(BaseSettings):
         return cleaned
 
     # Server settings
-    host: str = "0.0.0.0"
+    host: str = "0.0.0.0"  # nosec B104 — intentional bind for containers/Render
     port: int = 8403
     upgrade_url: str = "http://localhost:8403/upgrade"
     public_base_url: str = "https://alpha-sentinel-mcp.vercel.app"
