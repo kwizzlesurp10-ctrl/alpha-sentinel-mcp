@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Literal
+from datetime import UTC, datetime
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,28 +11,31 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.routing import APIRouter
 
-from app.agent_surface import agent_card, llms_txt, mcp_well_known, paid_resources, well_known_x402
+from app.agent_surface import (
+    agent_card,
+    llms_txt,
+    mcp_well_known,
+    well_known_x402,
+)
 from app.commerce import CommerceLayer
 from app.config import settings
-from app.payments import (
-    paid_catalog,
-    paid_tool_for_request_path,
-    payment_header_present,
-    payment_required_body,
-    resource_url_from_path,
-)
 from app.intelligence.price_feed import fetch_price_endpoint
 from app.intelligence.reports import generate_market_report_endpoint
 from app.intelligence.risk import calculate_risk_score_endpoint
 from app.intelligence.sentiment import aggregate_sentiment_endpoint
 from app.intelligence.volatility import analyze_volatility_endpoint
+from app.payments import (
+    paid_catalog,
+    paid_tool_for_request_path,
+    resource_url_from_path,
+)
+from app.rate_limit import allow_free_request
+from app.sample_cache import get as sample_cache_get
+from app.sample_cache import set as sample_cache_set
+from app.tool_payment_gate import handle_paid_tool_request
 from app.tools_registry import (
-    EXPECTED_TOOL_NAMES,
     FREE_TOOLS,
-    PAID_TOOLS,
     TOOL_COUNT,
-    TOOL_PRICES,
-    TOOL_SPECS,
 )
 from app.x402_services import X402Services
 
@@ -63,7 +65,7 @@ x402_services = X402Services(settings)
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 async def _request_params(request: Request) -> dict:
@@ -72,11 +74,28 @@ async def _request_params(request: Request) -> dict:
     if request.method in ("POST", "PUT", "PATCH"):
         try:
             body = await request.json()
-        except Exception:  # noqa: BLE001
+        except Exception:
             body = None
         if isinstance(body, dict):
             params.update({k: v for k, v in body.items() if v is not None})
     return params
+
+
+def _operator_authorized(request: Request) -> bool:
+    token = settings.operator_token
+    if not token:
+        return False
+    auth = request.headers.get("Authorization") or ""
+    if auth.startswith("Bearer ") and auth[7:].strip() == token:
+        return True
+    return request.headers.get("X-Operator-Token") == token
+
+
+def _agent_id_from_request(request: Request, path_agent: str | None = None) -> str:
+    header = request.headers.get("X-Agent-Id") or request.headers.get("X-Agent-ID")
+    if header:
+        return header.strip()
+    return path_agent or "anonymous"
 
 
 def _as_list(value, default):
@@ -120,16 +139,41 @@ async def normalize_vercel_api_path(request: Request, call_next):
         request.scope["path"] = path
         request.scope["raw_path"] = path.encode("utf-8")
 
-    if request.method in ("GET", "POST", "PUT", "PATCH"):
-        tool_name = paid_tool_for_request_path(path)
-        if tool_name and not payment_header_present(request.headers):
-            body = payment_required_body(
-                tool_name,
-                resource_url=resource_url_from_path(path),
+    if "/sample" in path and request.method in ("GET", "POST"):
+        client = request.client.host if request.client else "unknown"
+        if not allow_free_request(client):
+            return JSONResponse(
+                status_code=429,
+                content={"error": "rate_limit_exceeded", "retry_after_seconds": 60},
             )
-            return JSONResponse(status_code=402, content=body, headers={"PAYMENT-REQUIRED": "true"})
 
-    return await call_next(request)
+    if request.method in ("GET", "POST", "PUT", "PATCH"):
+        bare = path.split("?")[0]
+        if bare.endswith("/sample"):
+            return await call_next(request)
+        tool_name = paid_tool_for_request_path(path)
+        if tool_name:
+            gate = await handle_paid_tool_request(
+                request,
+                tool_name,
+                resource_url_from_path(path),
+            )
+            if gate is not None:
+                return gate
+
+    response = await call_next(request)
+    if hasattr(request.state, "x402_receipt_header"):
+        from fastapi.responses import Response
+
+        if isinstance(response, Response):
+            receipt = request.state.x402_receipt_header
+            if receipt:
+                response.headers["PAYMENT-RESPONSE"] = receipt
+                response.headers.setdefault(
+                    "Access-Control-Expose-Headers",
+                    "PAYMENT-REQUIRED,PAYMENT-RESPONSE",
+                )
+    return response
 
 
 api = APIRouter(tags=["alpha-sentinel"])
@@ -230,7 +274,7 @@ async def doctor():
             r = await client.get(f"{settings.coingecko_base_url}/ping")
             cg_ok = r.status_code == 200
             cg_msg = f"HTTP {r.status_code}"
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         cg_msg = str(exc)[:120]
 
     checks.append(
@@ -387,7 +431,10 @@ async def paid_resources_endpoint():
 
 
 @api.get("/quota/{agent_id}")
-async def get_quota(agent_id: str):
+async def get_quota(agent_id: str, request: Request):
+    caller = _agent_id_from_request(request, agent_id)
+    if caller != agent_id and not _operator_authorized(request):
+        raise HTTPException(status_code=403, detail="quota visible for your agent id only")
     quota = commerce_layer.get_quota(agent_id)
     return {
         "agent_id": agent_id,
@@ -413,14 +460,10 @@ async def get_stats():
             stats.get("pro_active", 0), commerce_status.get("pro_tier_count", 0)
         ),
         "tool_credits_sold": stats.get("tool_credits_sold", 0),
-        "revenue_today_usd": stats.get("revenue_today_usd", 0.0),
+        "revenue_today_usd": round(stats.get("revenue_today_usd", 0.0), 2),
         "calls_today": stats.get("calls_today", 0),
         "avg_latency_ms": stats.get("avg_latency_ms", 0.0),
-        "active_tools": EXPECTED_TOOL_NAMES,
-        "free_tools": FREE_TOOLS,
-        "paid_tools": PAID_TOOLS,
         "tool_count": TOOL_COUNT,
-        "pricing": TOOL_PRICES,
         "network": settings.x402_default_network,
         "pay_to_configured": bool(settings.x402_pay_to_address),
         "timestamp": _now_iso(),
@@ -434,19 +477,19 @@ async def get_pulse_report(block_depth: int = Query(default=12, ge=1, le=100)):
 
         return await generate_pulse_report(block_depth)
     except ImportError:
-        return {
-            "status": "stub",
-            "message": "Pulse module not bundled in this build",
-            "block_depth": block_depth,
-            "timestamp": _now_iso(),
-        }
+        raise HTTPException(
+            status_code=501,
+            detail="Pulse module not bundled in this build",
+        )
     except Exception as e:
         logger.error("Pulse generation failed: %s", e)
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @api.get("/ledger/{name}")
-async def get_ledger(name: str):
+async def get_ledger(name: str, request: Request):
+    if not _operator_authorized(request):
+        raise HTTPException(status_code=401, detail="operator token required")
     if name not in ["spend", "revenue"]:
         raise HTTPException(status_code=400, detail="name must be 'spend' or 'revenue'")
     try:
@@ -462,18 +505,72 @@ async def get_wallet_info():
     addr = settings.x402_pay_to_address
     return {
         "seller_receive_address": (addr[:10] + "…") if addr and len(addr) > 10 else addr,
-        "seller_receive_address_full": addr,
-        "buyer_address": "configured" if settings.evm_private_key else "not configured",
         "network": settings.x402_default_network,
         "pay_to_configured": bool(addr),
+        "buyer_key_on_server": bool(settings.evm_private_key),
     }
 
 
 @api.get("/swarm/stats")
 async def get_swarm_stats():
     if not settings.swarm_enabled:
-        return {"enabled": False, "message": "Swarm agency disabled"}
-    return {"enabled": True, "message": "Swarm module not loaded in serverless build"}
+        return {"enabled": False}
+    return {"enabled": True, "status": "not_loaded_in_serverless_build"}
+
+
+SAMPLE_INPUTS: dict[str, dict] = {
+    "analyze_volatility": {"symbol": "btc", "window_minutes": 60, "z_threshold": 2.0},
+    "aggregate_sentiment": {
+        "symbols": ["btc", "eth"],
+        "sources": ["news"],
+        "window_minutes": 60,
+    },
+    "calculate_risk_score": {
+        "symbols": ["btc", "eth"],
+        "include_factors": ["volatility", "liquidity", "correlation"],
+    },
+    "generate_market_report": {
+        "report_type": "daily",
+        "symbols": ["btc", "eth"],
+        "format": "json",
+    },
+}
+
+
+async def _run_tool_sample(tool_name: str) -> dict:
+    cache_key = f"sample:{tool_name}"
+    cached = sample_cache_get(cache_key)
+    if cached is not None:
+        return cached
+
+    args = SAMPLE_INPUTS[tool_name]
+    from app.mcp_http import call_tool
+
+    result = await call_tool(tool_name, args)
+    payload = {
+        "sample": True,
+        "tool": tool_name,
+        "fixed_input": args,
+        "preview": result.get("structuredContent") or result,
+        "upsell": f"Full access: POST /tools/{tool_name.replace('_score', '').replace('generate_market_report', 'generate_report')} with x402 payment",
+    }
+    sample_cache_set(cache_key, payload)
+    return payload
+
+
+@api.api_route("/tools/{tool_name}/sample", methods=["GET", "POST"])
+async def tool_sample(tool_name: str):
+    alias = {
+        "calculate_risk": "calculate_risk_score",
+        "generate_report": "generate_market_report",
+    }.get(tool_name, tool_name)
+    if alias not in SAMPLE_INPUTS:
+        raise HTTPException(status_code=404, detail="unknown tool sample")
+    try:
+        return await _run_tool_sample(alias)
+    except Exception as exc:
+        logger.error("sample failed for %s: %s", tool_name, exc)
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @api.post("/mcp")
@@ -484,7 +581,7 @@ async def mcp_jsonrpc(request: Request):
 
     try:
         payload = await request.json()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return JSONResponse(
             status_code=400,
             content={"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": str(exc)}},
@@ -526,7 +623,7 @@ async def a2a_jsonrpc(request: Request):
 
     try:
         payload = await request.json()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return JSONResponse(
             status_code=400,
             content={"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": str(exc)}},

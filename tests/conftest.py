@@ -15,6 +15,21 @@ def test_seller_pay_to(monkeypatch):
     monkeypatch.setattr(settings, "x402_pay_to_address", TEST_PAY_TO)
 
 
+@pytest.fixture(autouse=True)
+def idempotency_memory_store(monkeypatch):
+    """Allow paid-path tests without Upstash (production uses fail-closed)."""
+    from app import payment_idempotency as pid
+    from app.kv_store import InMemoryKvStore, set_store_override
+
+    store = InMemoryKvStore()
+    set_store_override(store)
+    monkeypatch.setattr(pid, "must_persist_idempotency", lambda: False)
+    yield
+    set_store_override(None)
+    store.clear()
+    pid.clear()
+
+
 @pytest.fixture
 def mock_coingecko_api(monkeypatch):
     """Patch httpx.AsyncClient.get used by the live price_feed module."""

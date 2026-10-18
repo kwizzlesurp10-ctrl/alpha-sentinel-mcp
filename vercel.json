@@ -1,6 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "cd dashboard && npm install && npm run build",
+  "outputDirectory": "dashboard/dist",
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 60
+    }
+  },
   "headers": [
     {
       "source": "/assets/(.*)",
@@ -15,6 +21,12 @@
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
         { "key": "X-Frame-Options", "value": "DENY" }
       ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(health|doctor|stats|pulse|catalog|wallet|quota/.*|ledger/.*|swarm/.*|llms.txt|openapi.json|docs|redoc|mcp.*|a2a|\\.well-known/.*|tools/.*)",
+      "destination": "/api/index"
     }
   ]
 }

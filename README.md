@@ -126,28 +126,24 @@ nano .env  # Edit with your credentials
 make up  # API (8403) + dashboard (5174)
 ```
 
-### Environment Variables
+### Environment Variables (Vercel / production)
 
-```bash
-# Seller (receive revenue)
-X402_PAY_TO_ADDRESS=0xAB745e5F...  # Separate from buyer!
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `X402_PAY_TO_ADDRESS` | **yes** | Seller USDC receive address (Base mainnet) |
+| `CDP_API_KEY_ID` | **yes** (mainnet) | Coinbase CDP x402 facilitator auth |
+| `CDP_API_KEY_SECRET` | **yes** (mainnet) | CDP Ed25519 secret for facilitator JWT |
+| `X402_DEFAULT_NETWORK` | **yes** | `eip155:8453` (Base mainnet) |
+| `REVENUE_NETWORK` | recommended | Same as default; pins settlement rail |
+| `PUBLIC_BASE_URL` | **yes** | `https://alpha-sentinel-mcp.vercel.app` |
+| `OPERATOR_TOKEN` | recommended | Protects `/ledger/*`; cross-agent `/quota` |
+| `COINGECKO_API_KEY` | optional | Higher CoinGecko rate limits |
+| `KV_REST_API_URL` / `KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_*`) | **yes** on mainnet/prod | Payment idempotency + settlement replay guard (SET NX, 24h TTL) |
+| `X_API_KEY` / `REDDIT_*` | optional | Reserved; sentiment uses Fear & Greed macro proxy today |
 
-# Buyer (hot wallet for spending)
-EVM_PRIVATE_KEY=<your_buyer_key>    # NEVER on Render!
+Never set `EVM_PRIVATE_KEY` on the server (buyer key stays local).
 
-# APIs
-COINGECKO_API_KEY=<your_key>
-X_API_KEY=<twitter/x_api_key>       # Optional
-
-# Commerce
-STRIPE_SECRET_KEY=<your_stripe_key>  # Optional
-REDIS_URL=redis://localhost:6379     # Optional
-
-# Network
-X402_DEFAULT_NETWORK=eip155:84532    # Base Sepolia dev
-CDP_API_KEY_ID=<cdp_id>              # For mainnet selling
-CDP_API_KEY_SECRET=<cdp_secret>
-```
+See `.env.example` for the full list (names only).
 
 ## 🔧 Development
 

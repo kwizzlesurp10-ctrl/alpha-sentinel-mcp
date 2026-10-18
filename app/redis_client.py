@@ -5,6 +5,7 @@ Serverless-safe: no persistent TCP connection. Buyer keys never live here.
 
 from __future__ import annotations
 
+import os
 from typing import Any
 from urllib.parse import quote
 
@@ -13,16 +14,36 @@ import httpx
 from app.config import settings
 
 
+def _kv_url() -> str | None:
+    return (
+        settings.kv_rest_api_url
+        or os.environ.get("KV_REST_API_URL")
+        or os.environ.get("UPSTASH_REDIS_REST_URL")
+    )
+
+
+def _kv_token() -> str | None:
+    return (
+        settings.kv_rest_api_token
+        or os.environ.get("KV_REST_API_TOKEN")
+        or os.environ.get("UPSTASH_REDIS_REST_TOKEN")
+    )
+
+
+def kv_configured() -> bool:
+    return bool(_kv_url() and _kv_token())
+
+
 def configured() -> bool:
-    return bool(settings.kv_rest_api_url and settings.kv_rest_api_token)
+    return kv_configured()
 
 
 def _headers() -> dict[str, str]:
-    return {"Authorization": f"Bearer {settings.kv_rest_api_token}"}
+    return {"Authorization": f"Bearer {_kv_token()}"}
 
 
 def _base() -> str:
-    return (settings.kv_rest_api_url or "").rstrip("/")
+    return (_kv_url() or "").rstrip("/")
 
 
 async def command(*parts: Any) -> Any:
@@ -51,5 +72,5 @@ async def ping() -> dict[str, Any]:
             "provider": "upstash",
             "result": "PONG" if ok else result,
         }
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return {"enabled": True, "ok": False, "error": str(exc)[:160]}

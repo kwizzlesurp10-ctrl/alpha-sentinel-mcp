@@ -5,7 +5,12 @@ from __future__ import annotations
 from typing import Any
 
 from app.config import settings
-from app.payments import all_tool_resources, paid_catalog, public_base_url, settlement_network
+from app.payments import (
+    all_tool_resources,
+    paid_catalog,
+    public_base_url,
+    settlement_network,
+)
 from app.tools_registry import TOOL_COUNT, TOOL_SPECS
 
 
@@ -58,7 +63,6 @@ def well_known_x402() -> dict[str, Any]:
 
 
 def llms_txt() -> str:
-    base = _base()
     lines = [
         "# Alpha Sentinel Market Intelligence MCP Server",
         "",
@@ -87,11 +91,16 @@ def agent_card() -> dict[str, Any]:
     """
     base = _base()
     network = settlement_network()
+    from app.tools_registry import TOOL_PRICES
+
     skills = [
         {
             "id": spec["name"],
             "name": spec["name"],
             "description": spec["description"].strip(),
+            "price_usdc": "free"
+            if spec["tier_access"].get("free")
+            else TOOL_PRICES.get(spec["name"], "$0.01"),
             "tags": ["crypto", "market-intelligence", "x402", "agentcash", "base", "a2a"],
             "inputModes": ["application/json", "text/plain"],
             "outputModes": ["application/json"],
@@ -172,7 +181,8 @@ def agent_card() -> dict[str, Any]:
 
 def mcp_well_known() -> dict[str, Any]:
     """Remote MCP registration document (Streamable HTTP, not stdio-only)."""
-    from app.tools_registry import TOOL_PRICES, TOOL_SPECS as specs
+    from app.tools_registry import TOOL_PRICES
+    from app.tools_registry import TOOL_SPECS as specs
 
     base = _base()
     http_url = f"{base}/mcp"

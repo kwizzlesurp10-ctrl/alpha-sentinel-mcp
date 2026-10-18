@@ -1,6 +1,7 @@
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+
 from app.application import app
 from app.config import settings
 
@@ -90,8 +91,7 @@ async def test_wallet_info(client):
 # ============================================================================
 
 from app.intelligence.price_feed import validate_symbol
-from app.intelligence.volatility import calculate_z_score
-from app.intelligence.risk import classify_volatility
+from app.intelligence.volatility import calculate_z_score, classify_volatility
 
 
 def test_validate_symbol():
@@ -134,10 +134,10 @@ def test_classify_volatility():
 # ============================================================================
 
 from app.tools_registry import (
-    TOOL_COUNT,
     EXPECTED_TOOL_NAMES,
     FREE_TOOLS,
     PAID_TOOLS,
+    TOOL_COUNT,
     get_tool_spec,
 )
 

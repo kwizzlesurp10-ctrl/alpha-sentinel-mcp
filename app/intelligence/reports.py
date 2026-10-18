@@ -1,14 +1,13 @@
 """Market report generation module - Comprehensive analysis synthesis."""
 
-from typing import Optional, Literal
-from datetime import datetime, timedelta
 import logging
+from datetime import datetime
 
 from app.config import settings
 from app.intelligence.price_feed import fetch_price_from_coingecko
-from app.intelligence.volatility import analyze_volatility_endpoint
-from app.intelligence.sentiment import aggregate_sentiment_endpoint
 from app.intelligence.risk import calculate_risk_score_endpoint
+from app.intelligence.sentiment import aggregate_sentiment_endpoint
+from app.intelligence.volatility import analyze_volatility_endpoint
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +108,10 @@ async def generate_market_report_endpoint(
         # Generate executive summary
         exec_summary = generate_executive_summary(intelligence_bundle, report_type)
         
+        import time as _time
+
+        started = _time.perf_counter()
+
         # Calculate total cost
         total_cost = (
             settings.price_feed_price_usd * len(symbols) +
@@ -132,7 +135,7 @@ async def generate_market_report_endpoint(
                 "total_symbols_analyzed": len(symbols),
                 "cost_usd": round(total_cost, 2),
                 "data_sources": ["coingecko", "twitter", "reddit"],
-                "processing_time_seconds": 2.5,  # Simulated
+                "processing_time_seconds": round(_time.perf_counter() - started, 3),
             },
             "format_requested": format,
             "cost_usd": total_cost,
@@ -149,7 +152,7 @@ async def generate_market_report_endpoint(
         logger.error(f"Report generation error: {e}")
         return {
             "success": False,
-            "error": f"Report generation failed: {str(e)}",
+            "error": f"Report generation failed: {e!s}",
             "report_type": report_type,
         }
 
@@ -218,7 +221,7 @@ def generate_recommendations(intelligence: dict) -> list[str]:
     
     for symbol, data in intelligence.items():
         risk_data = data.get("risk", {}).get("data", {}).get("individual", {}).get(symbol, {})
-        risk_level = risk_data.get("risk_level", "UNKNOWN")
+        risk_data.get("risk_level", "UNKNOWN")
         recommendations_list = risk_data.get("recommendations", [])
         
         for rec in recommendations_list[:2]:  # Top 2 recommendations per coin

@@ -1,12 +1,8 @@
 """Commerce Layer - Quota, payments, and tier management."""
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Optional
-import logging
-import uuid
-
-from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +15,7 @@ class QuotaState:
     remaining: int
     limit: int
     rate_limit_per_min: int
-    reset_at: Optional[datetime] = None
+    reset_at: datetime | None = None
     
     def is_exhausted(self) -> bool:
         return self.remaining <= 0
@@ -191,11 +187,15 @@ async def verify_x402_payment(
     # 3. Record spend in ledger
     # 4. Deduct from quota
     
-    logger.info(f"Verifying x402 payment for agent {agent_id}: {resource_url}")
-    
-    # TODO: Implement actual blockchain verification
-    # For now, simulate successful verification
-    return True
+    logger.info("Verifying x402 payment for agent %s: %s", agent_id, resource_url)
+    from app.x402_services import verify_and_settle_from_headers
+
+    sig = challenge_response.get("payment_signature") or challenge_response.get("signature")
+    required = challenge_response.get("payment_required")
+    if not sig or not required:
+        return False
+    result = await verify_and_settle_from_headers(str(sig), str(required))
+    return bool(result.get("is_valid") and result.get("payment_settled"))
 
 
 def calculate_cost_for_tool(tool_name: str, num_calls: int = 1) -> float:

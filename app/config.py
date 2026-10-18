@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import field_validator, model_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -36,7 +36,7 @@ class Settings(BaseSettings):
         return cleaned
 
     # Server settings
-    host: str = "0.0.0.0"
+    host: str = "0.0.0.0"  # nosec B104 — intentional bind for containers/Render
     port: int = 8403
     upgrade_url: str = "http://localhost:8403/upgrade"
     public_base_url: str = "https://alpha-sentinel-mcp.vercel.app"
@@ -88,8 +88,14 @@ class Settings(BaseSettings):
     operator_token: str | None = None
     redis_url: str | None = None
     kv_url: str | None = None
-    kv_rest_api_url: str | None = None
-    kv_rest_api_token: str | None = None
+    kv_rest_api_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("KV_REST_API_URL", "UPSTASH_REDIS_REST_URL"),
+    )
+    kv_rest_api_token: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("KV_REST_API_TOKEN", "UPSTASH_REDIS_REST_TOKEN"),
+    )
     kv_rest_api_read_only_token: str | None = None
 
     evm_private_key: str | None = None
@@ -109,6 +115,9 @@ class Settings(BaseSettings):
     cdp_api_key_id: str | None = None
     cdp_api_key_secret: str | None = None
     cdp_facilitator_url: str = "https://api.cdp.coinbase.com/platform/v2/x402"
+    cdp_discovery_search_url: str = (
+        "https://api.cdp.coinbase.com/platform/v2/x402/discovery/search"
+    )
     cdp_networks: str = "eip155:8453"
 
     x402_default_network: str = "eip155:8453"

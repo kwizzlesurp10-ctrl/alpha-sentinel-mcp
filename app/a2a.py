@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from app.tools_registry import EXPECTED_TOOL_NAMES, get_tool_spec
@@ -21,7 +21,7 @@ TASKS: dict[str, dict[str, Any]] = {}
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _extract_skill_and_params(params: dict[str, Any]) -> tuple[str, dict[str, Any]]:

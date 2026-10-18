@@ -1,15 +1,16 @@
 """FastMCP server for Alpha Sentinel tool access."""
 
-from fastmcp import FastMCP
 import logging
 
+from fastmcp import FastMCP
+
 from app.config import settings
-from app.tools_registry import TOOL_SPECS, get_tool_spec, list_all_tools
 from app.intelligence.price_feed import fetch_price_endpoint
-from app.intelligence.volatility import analyze_volatility_endpoint
-from app.intelligence.sentiment import aggregate_sentiment_endpoint
-from app.intelligence.risk import calculate_risk_score_endpoint
 from app.intelligence.reports import generate_market_report_endpoint
+from app.intelligence.risk import calculate_risk_score_endpoint
+from app.intelligence.sentiment import aggregate_sentiment_endpoint
+from app.intelligence.volatility import analyze_volatility_endpoint
+from app.tools_registry import TOOL_SPECS
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ async def fetch_price(symbol: str) -> str:
         return json.dumps(result, indent=2)
     except Exception as e:
         logger.error(f"fetch_price error: {e}")
-        return f'{{"error": "Failed to fetch price: {str(e)}"}}'
+        return f'{{"error": "Failed to fetch price: {e!s}"}}'
 
 
 @mcp_app.tool()
@@ -90,7 +91,7 @@ async def analyze_volatility(
         return json.dumps(result, indent=2)
     except Exception as e:
         logger.error(f"analyze_volatility error: {e}")
-        return f'{{"error": "Analysis failed: {str(e)}"}}'
+        return f'{{"error": "Analysis failed: {e!s}"}}'
 
 
 @mcp_app.tool()
@@ -119,7 +120,7 @@ async def aggregate_sentiment(
         return json.dumps(result, indent=2)
     except Exception as e:
         logger.error(f"aggregate_sentiment error: {e}")
-        return f'{{"error": "Sentiment analysis failed: {str(e)}"}}'
+        return f'{{"error": "Sentiment analysis failed: {e!s}"}}'
 
 
 @mcp_app.tool()
@@ -146,7 +147,7 @@ async def calculate_risk_score(
         return json.dumps(result, indent=2)
     except Exception as e:
         logger.error(f"calculate_risk_score error: {e}")
-        return f'{{"error": "Risk calculation failed: {str(e)}"}}'
+        return f'{{"error": "Risk calculation failed: {e!s}"}}'
 
 
 @mcp_app.tool()
@@ -175,7 +176,7 @@ async def generate_market_report(
         return json.dumps(result, indent=2)
     except Exception as e:
         logger.error(f"generate_market_report error: {e}")
-        return f'{{"error": "Report generation failed: {str(e)}"}}'
+        return f'{{"error": "Report generation failed: {e!s}"}}'
 
 
 # ============================================================================

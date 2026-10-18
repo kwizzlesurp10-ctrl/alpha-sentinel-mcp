@@ -8,8 +8,17 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.payments import paid_catalog, public_base_url, settlement_network, seller_pay_to
-from app.tools_registry import FREE_TOOLS, PAID_TOOLS, TOOL_HTTP_ALIASES, TOOL_HTTP_PATHS, http_path_to_tool
+from app.payments import (
+    paid_catalog,
+    public_base_url,
+    seller_pay_to,
+    settlement_network,
+)
+from app.tools_registry import (
+    FREE_TOOLS,
+    PAID_TOOLS,
+    http_path_to_tool,
+)
 
 PUBLIC_FREE_PATHS = {
     "/health",
@@ -25,6 +34,12 @@ PUBLIC_FREE_PATHS = {
     "/mcp",
     "/mcp/mcp",
     "/a2a",
+    "/tools/analyze_volatility/sample",
+    "/tools/aggregate_sentiment/sample",
+    "/tools/calculate_risk/sample",
+    "/tools/calculate_risk_score/sample",
+    "/tools/generate_report/sample",
+    "/tools/generate_market_report/sample",
 }
 
 
