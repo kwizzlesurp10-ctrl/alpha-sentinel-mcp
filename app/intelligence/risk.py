@@ -4,6 +4,7 @@ import logging
 from datetime import datetime
 
 from app.config import settings
+from app.intelligence.volatility import classify_volatility
 
 logger = logging.getLogger(__name__)
 
