@@ -102,7 +102,18 @@ jobs:
     needs: [test, docker]
     
     steps:
+      - name: Skip when Vercel CI secrets are unset
+        id: vercel_ci
+        run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "VERCEL_TOKEN not set; skipping dashboard preview deploy (Vercel Git integration may still run)."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Deploy to Vercel Preview
+        if: steps.vercel_ci.outputs.skip != 'true'
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
@@ -127,7 +138,18 @@ jobs:
           service-id: ${{ secrets.RENDER_SERVICE_ID }}
           api-key: ${{ secrets.RENDER_API_KEY }}
       
+      - name: Skip dashboard deploy when Vercel CI secrets are unset
+        id: vercel_ci_prod
+        run: |
+          if [ -z "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "VERCEL_TOKEN not set; skipping dashboard production deploy."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Deploy Dashboard to Vercel
+        if: steps.vercel_ci_prod.outputs.skip != 'true'
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
