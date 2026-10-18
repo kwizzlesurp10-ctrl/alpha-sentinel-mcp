@@ -85,7 +85,7 @@ curl -X GET https://alpha-sentinel-mcp.vercel.app/api/mcp/.well-known/mcp
 # 3. Test fetch_price tool
 curl -X POST "https://alpha-sentinel-mcp.vercel.app/api/mcp/tools/fetch_price?symbol=btc" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer opr_9e...2d49"
+  -H "Authorization: Bearer <your-local-token>"
 
 # Expected: BTC price data with x402 cost info
 ```
