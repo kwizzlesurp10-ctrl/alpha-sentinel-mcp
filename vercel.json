@@ -11,40 +11,28 @@
     {
       "source": "/assets/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     },
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" },
-        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "X-Frame-Options", "value": "DENY" }
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        }
       ]
     }
-  ],
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/index" },
-    { "source": "/health", "destination": "/api/index" },
-    { "source": "/doctor", "destination": "/api/index" },
-    { "source": "/stats", "destination": "/api/index" },
-    { "source": "/pulse", "destination": "/api/index" },
-    { "source": "/catalog", "destination": "/api/index" },
-    { "source": "/wallet", "destination": "/api/index" },
-    { "source": "/quota/:path*", "destination": "/api/index" },
-    { "source": "/ledger/:path*", "destination": "/api/index" },
-    { "source": "/swarm/:path*", "destination": "/api/index" },
-    { "source": "/llms.txt", "destination": "/api/index" },
-    { "source": "/openapi.json", "destination": "/api/index" },
-    { "source": "/docs", "destination": "/api/index" },
-    { "source": "/docs/:path*", "destination": "/api/index" },
-    { "source": "/redoc", "destination": "/api/index" },
-    { "source": "/a2a", "destination": "/api/index" },
-    { "source": "/mcp", "destination": "/api/index" },
-    { "source": "/mcp/", "destination": "/api/index" },
-    { "source": "/mcp/:path*", "destination": "/api/index" },
-    { "source": "/.well-known/:path*", "destination": "/api/index" },
-    { "source": "/tools/:path*", "destination": "/api/index" },
-    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

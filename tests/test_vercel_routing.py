@@ -11,24 +11,29 @@ from httpx import ASGITransport, AsyncClient
 from app.application import app
 
 
-def _vercel_rewrites() -> list[dict[str, str]]:
-    data = json.loads(Path("vercel.json").read_text(encoding="utf-8"))
-    return list(data.get("rewrites") or [])
+def _vercel_config() -> dict:
+    return json.loads(Path("vercel.json").read_text(encoding="utf-8"))
 
 
-def test_vercel_api_paths_rewrite_before_spa_fallback():
-    rewrites = _vercel_rewrites()
-    assert rewrites, "vercel.json must define rewrites"
-    destinations = [r.get("destination") for r in rewrites]
-    assert destinations[-1] == "/index.html"
-    api_like = [
-        r
-        for r in rewrites
-        if r.get("destination") == "/api/index" and r.get("source") != "/api/(.*)"
-    ]
-    sources = " ".join(r["source"] for r in api_like)
-    for needle in ("/health", "/mcp", "/tools/:path*", "/.well-known/:path*", "/llms.txt"):
-        assert needle in sources
+def test_vercel_has_no_rewrites_shadowing_fastapi():
+    """Project uses Vercel's FastAPI framework preset (entrypoint api.index:app).
+
+    Every request that is not a static file in dashboard/dist is routed to the
+    FastAPI app at its original path. Rewrites are applied *before* the app and
+    now forward the rewritten destination path, so a catch-all SPA rewrite
+    (``/(.*) -> /index.html``) or ``-> /api/index`` rewrites hide the whole API
+    (prod served index.html for /health, /mcp, /tools/*). Keep rewrites empty.
+    """
+    cfg = _vercel_config()
+    rewrites = cfg.get("rewrites") or []
+    assert not any(r.get("destination") == "/index.html" for r in rewrites)
+    assert not any(r.get("destination") == "/api/index" for r in rewrites)
+    assert "routes" not in cfg
+
+
+def test_pyproject_declares_fastapi_entrypoint():
+    text = Path("pyproject.toml").read_text(encoding="utf-8")
+    assert 'entrypoint = "api.index:app"' in text
 
 
 @pytest.mark.asyncio
