@@ -57,9 +57,9 @@ jobs:
           bandit -r app/ -ll
       
       - name: Secret Detection (gitleaks)
-        run: |
-          pip install gitleaks
-          gitleaks detect --source=. --verbose
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   docker:
     name: Build Docker Image
