@@ -7,7 +7,12 @@ import logging
 from typing import Any
 
 from app.mcp_x402_payment import execute_paid_mcp_tool, extract_mcp_payment_meta
-from app.tools_registry import EXPECTED_TOOL_NAMES, FREE_TOOLS, TOOL_SPECS, get_tool_spec
+from app.tools_registry import (
+    EXPECTED_TOOL_NAMES,
+    FREE_TOOLS,
+    TOOL_SPECS,
+    get_tool_spec,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +103,7 @@ async def call_tool(name: str, arguments: dict[str, Any] | None = None) -> dict[
     async def handler(args: dict[str, Any]) -> dict[str, Any]:
         try:
             result = await _execute_tool(name, args)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.exception("MCP tool %s failed", name)
             return {"isError": True, "content": [{"type": "text", "text": str(exc)}]}
         return {

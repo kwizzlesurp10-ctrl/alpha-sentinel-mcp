@@ -143,4 +143,4 @@ async def aggregate_sentiment_endpoint(
         return {"success": False, "error": str(e), "symbols": symbols}
     except Exception as e:
         logger.error("Sentiment aggregation error: %s", e)
-        return {"success": False, "error": f"Analysis failed: {str(e)}", "symbols": symbols}
+        return {"success": False, "error": f"Analysis failed: {e!s}", "symbols": symbols}

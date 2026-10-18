@@ -19,8 +19,8 @@ from app.commerce_payment import (
 from app.config import settings
 from app.models import BuildSellerRequirementsInput
 from app.payment_replay import claim_settlement_tx
-from app.payments import TOOL_PRICES, tool_resource_url
-from app.tools_registry import PAID_TOOLS, TOOL_HTTP_PATHS, get_tool_spec
+from app.payments import TOOL_PRICES
+from app.tools_registry import PAID_TOOLS, get_tool_spec
 
 logger = logging.getLogger(__name__)
 

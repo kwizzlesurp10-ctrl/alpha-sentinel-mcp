@@ -1,12 +1,8 @@
 """Commerce Layer - Quota, payments, and tier management."""
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Optional
-import logging
-import uuid
-
-from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +15,7 @@ class QuotaState:
     remaining: int
     limit: int
     rate_limit_per_min: int
-    reset_at: Optional[datetime] = None
+    reset_at: datetime | None = None
     
     def is_exhausted(self) -> bool:
         return self.remaining <= 0

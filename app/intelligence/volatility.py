@@ -1,9 +1,8 @@
 """Volatility analysis module - Statistical anomaly detection."""
 
-import math
-from typing import Optional
-from datetime import datetime, timedelta
 import logging
+import math
+from datetime import datetime
 
 from app.config import settings
 from app.intelligence.price_feed import get_price_history
@@ -149,7 +148,7 @@ async def analyze_volatility_endpoint(
         logger.error(f"Invalid parameters: {e}")
         return {
             "success": False,
-            "error": f"Invalid parameters: {str(e)}",
+            "error": f"Invalid parameters: {e!s}",
             "symbol": symbol,
             "window_range": "1-1440 minutes",
             "threshold_range": "0.1-5.0 σ",
@@ -158,7 +157,7 @@ async def analyze_volatility_endpoint(
         logger.error(f"Volatility analysis error: {e}")
         return {
             "success": False,
-            "error": f"Analysis failed: {str(e)}",
+            "error": f"Analysis failed: {e!s}",
             "symbol": symbol,
         }
 

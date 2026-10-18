@@ -181,7 +181,7 @@ def _decode_payment_inputs(
     # Buyer's signed payload (PAYMENT-SIGNATURE header value).
     try:
         payload = decode_payment_signature_header(payment_signature)
-    except Exception:  # noqa: BLE001 — fall back to raw base64 json
+    except Exception:
         raw = json.loads(base64.b64decode(payment_signature).decode("utf-8"))
         payload = PaymentPayload.model_validate(raw)
 
@@ -203,7 +203,7 @@ def _decode_payment_inputs(
                 break
         
         requirements = matched if matched else accepts[0]
-    except Exception:  # noqa: BLE001 — fall back to bare requirement dict
+    except Exception:
         raw = json.loads(base64.b64decode(payment_required).decode("utf-8"))
         bare = (raw.get("accepts") or [raw])[0]
         requirements = PaymentRequirements.model_validate(bare)
@@ -490,7 +490,7 @@ def asset_decimals(network: str | None, asset: str | None) -> int:
         else:
             return DEFAULT_ASSET_DECIMALS
         return int(get_asset_info(network, str(asset))["decimals"])
-    except Exception:  # noqa: BLE001 — unregistered asset/import: fall back, never raise
+    except Exception:
         return DEFAULT_ASSET_DECIMALS
 
 
@@ -543,7 +543,7 @@ def signed_requirements_capture() -> tuple[dict[str, Any], Any]:
             )
             store["asset"] = getattr(req, "asset", None)
             store["network"] = getattr(req, "network", None)
-        except Exception:  # noqa: BLE001 — bookkeeping must never break a payment
+        except Exception:
             logger.warning("pay_and_fetch: could not capture the signed amount")
 
     return store, capture
@@ -898,7 +898,7 @@ async def _verify_and_settle_payment(params: VerifyPaymentInput) -> dict[str, An
         payload, requirements = _decode_payment_inputs(
             params.payment_signature, params.payment_required
         )
-    except Exception as exc:  # noqa: BLE001 — malformed wire must 402, not 500
+    except Exception as exc:
         logger.warning("payment decode failed: %s", exc)
         return _invalid_payment_result(f"malformed_payment: {exc}")
 
@@ -906,7 +906,7 @@ async def _verify_and_settle_payment(params: VerifyPaymentInput) -> dict[str, An
         network = _network_of(requirements)
         server = _resource_server(network)
         verify_result = await server.verify_payment(payload, requirements)
-    except Exception as exc:  # noqa: BLE001 — facilitator/SDK faults
+    except Exception as exc:
         logger.warning("payment verify failed: %s", exc)
         return _invalid_payment_result(f"verify_failed: {exc}")
 
@@ -916,33 +916,6 @@ async def _verify_and_settle_payment(params: VerifyPaymentInput) -> dict[str, An
         try:
             settle_result = await server.settle_payment(payload, requirements)
             settlement = settle_result.model_dump()
-            if settlement.get("success") is True:
-                try:
-                    from app import mailrail
-                    tx_hash = (
-                        settlement.get("transaction")
-                        or settlement.get("tx_hash")
-                        or settlement.get("hash")
-                        or getattr(settle_result, "transaction", None)
-                    )
-                    try:
-                        amt = float(settlement.get("amount") or 0.0)
-                    except (ValueError, TypeError):
-                        amt = 0.0
-                    sub, body = mailrail.format_settlement_receipt(
-                        payer=str(settlement.get("payer") or getattr(payload, "address", "unknown")),
-                        amount_usdc=amt,
-                        resource=str(getattr(requirements, "description", None) or "x402-resource"),
-                        tx_hash=tx_hash,
-                    )
-                    mailrail.send_agent_mail(
-                        to=settings.mailrail_admin_recipient,
-                        subject=sub,
-                        body=body,
-                        event_id=tx_hash,
-                    )
-                except Exception as exc:
-                    logger.warning("MailRail auto-receipt dispatch failed: %s", exc)
         except Exception as exc:
             settlement_error = str(exc)
 
@@ -1009,6 +982,7 @@ def _parse_facilitator_input(data: dict[str, Any]) -> tuple[Any, Any]:
        - payment_required / paymentRequired
     """
     import base64
+
     from x402.schemas import PaymentPayload, PaymentRequirements
 
     if not isinstance(data, dict):
@@ -1175,32 +1149,6 @@ async def facilitator_settle(data: dict[str, Any]) -> dict[str, Any]:
         )
         error = settlement.get("error") if not success else None
 
-        if success and tx_hash:
-            try:
-                from app import mailrail
-
-                try:
-                    amt = float(settlement.get("amount") or 0.0)
-                except (ValueError, TypeError):
-                    amt = 0.0
-                sub, body = mailrail.format_settlement_receipt(
-                    payer=str(settlement.get("payer") or getattr(payload, "address", "unknown")),
-                    amount_usdc=amt,
-                    resource=str(getattr(requirements, "description", None) or "x402-resource"),
-                    tx_hash=str(tx_hash),
-                )
-                mailrail.send_agent_mail(
-                    to=settings.mailrail_admin_recipient,
-                    subject=sub,
-                    body=body,
-                    event_id=str(tx_hash),
-                )
-            except Exception as exc:
-                logger.warning(
-                    "MailRail auto-receipt dispatch failed in facilitator_settle: %s",
-                    exc,
-                )
-
         return {
             "success": bool(success),
             "txHash": str(tx_hash) if tx_hash else None,
@@ -1320,7 +1268,7 @@ class X402Services:
             facilitator = "misconfigured: CDP required for Base mainnet"
         return {
             "enabled": True,
-            "seller_address": f"{settings.x402_pay_to_address[:10]}...",
+            "seller_address": f"{(settings.x402_pay_to_address or '')[:10]}...",
             "network": settings.x402_default_network,
             "facilitator": facilitator,
             "facilitator_url": _facilitator_url_for(settings.x402_default_network),

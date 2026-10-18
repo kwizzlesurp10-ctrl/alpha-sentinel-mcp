@@ -51,5 +51,5 @@ async def ping() -> dict[str, Any]:
             "provider": "upstash",
             "result": "PONG" if ok else result,
         }
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return {"enabled": True, "ok": False, "error": str(exc)[:160]}

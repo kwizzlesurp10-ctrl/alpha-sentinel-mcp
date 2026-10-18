@@ -1,11 +1,9 @@
 """Risk assessment module - Multi-factor risk scoring."""
 
-from typing import Optional, Literal
-from datetime import datetime
 import logging
+from datetime import datetime
 
 from app.config import settings
-from app.intelligence.volatility import calculate_z_score, classify_volatility
 
 logger = logging.getLogger(__name__)
 
@@ -185,7 +183,10 @@ async def calculate_risk_score_endpoint(
         if include_factors is None:
             include_factors = ["volatility", "liquidity", "correlation"]
         
-        from app.intelligence.price_feed import fetch_price_from_coingecko, get_price_history
+        from app.intelligence.price_feed import (
+            fetch_price_from_coingecko,
+            get_price_history,
+        )
         from app.intelligence.volatility import calculate_z_score
 
         risk_assessments = {}
@@ -265,6 +266,6 @@ async def calculate_risk_score_endpoint(
         logger.error(f"Risk calculation error: {e}")
         return {
             "success": False,
-            "error": f"Analysis failed: {str(e)}",
+            "error": f"Analysis failed: {e!s}",
             "symbols": symbols,
         }

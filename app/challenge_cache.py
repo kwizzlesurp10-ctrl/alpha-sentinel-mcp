@@ -5,7 +5,8 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 log = logging.getLogger("x402")
 
@@ -29,7 +30,7 @@ def get_or_build(name: str, fp: str, builder: Callable[[], str]) -> str:
 
     try:
         header = builder()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         if cached and cached.get("header"):
             log.warning(
                 "challenge_cache: build failed for %s (%s); serving last-known-good",

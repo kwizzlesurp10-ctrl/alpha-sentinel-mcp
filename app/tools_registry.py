@@ -10,7 +10,6 @@ The registry drives:
 Remember to touch ALL related files when adding a new tool!
 """
 
-from typing import Callable, Any
 
 # ============================================================================
 # Tool Specifications (SSOT)
@@ -280,7 +279,7 @@ def update_tool_price(tool_name: str, new_price: str):
     """
     for spec in TOOL_SPECS:
         if spec["name"] == tool_name:
-            old_price = spec.get("price", "")
+            spec.get("price", "")
             spec["price"] = new_price
             TOOL_PRICES[tool_name] = new_price
             return

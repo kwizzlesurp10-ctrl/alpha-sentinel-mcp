@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
-from typing import Literal
+from datetime import UTC, datetime
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,25 +11,31 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.routing import APIRouter
 
-from app.agent_surface import agent_card, llms_txt, mcp_well_known, paid_resources, well_known_x402
+from app.agent_surface import (
+    agent_card,
+    llms_txt,
+    mcp_well_known,
+    well_known_x402,
+)
 from app.commerce import CommerceLayer
 from app.config import settings
-from app.payments import paid_catalog, paid_tool_for_request_path, resource_url_from_path
-from app.rate_limit import allow_free_request
-from app.sample_cache import get as sample_cache_get, set as sample_cache_set
-from app.tool_payment_gate import handle_paid_tool_request
 from app.intelligence.price_feed import fetch_price_endpoint
 from app.intelligence.reports import generate_market_report_endpoint
 from app.intelligence.risk import calculate_risk_score_endpoint
 from app.intelligence.sentiment import aggregate_sentiment_endpoint
 from app.intelligence.volatility import analyze_volatility_endpoint
+from app.payments import (
+    paid_catalog,
+    paid_tool_for_request_path,
+    resource_url_from_path,
+)
+from app.rate_limit import allow_free_request
+from app.sample_cache import get as sample_cache_get
+from app.sample_cache import set as sample_cache_set
+from app.tool_payment_gate import handle_paid_tool_request
 from app.tools_registry import (
-    EXPECTED_TOOL_NAMES,
     FREE_TOOLS,
-    PAID_TOOLS,
     TOOL_COUNT,
-    TOOL_PRICES,
-    TOOL_SPECS,
 )
 from app.x402_services import X402Services
 
@@ -60,7 +65,7 @@ x402_services = X402Services(settings)
 
 
 def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 async def _request_params(request: Request) -> dict:
@@ -69,7 +74,7 @@ async def _request_params(request: Request) -> dict:
     if request.method in ("POST", "PUT", "PATCH"):
         try:
             body = await request.json()
-        except Exception:  # noqa: BLE001
+        except Exception:
             body = None
         if isinstance(body, dict):
             params.update({k: v for k, v in body.items() if v is not None})
@@ -269,7 +274,7 @@ async def doctor():
             r = await client.get(f"{settings.coingecko_base_url}/ping")
             cg_ok = r.status_code == 200
             cg_msg = f"HTTP {r.status_code}"
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         cg_msg = str(exc)[:120]
 
     checks.append(
@@ -563,7 +568,7 @@ async def tool_sample(tool_name: str):
         raise HTTPException(status_code=404, detail="unknown tool sample")
     try:
         return await _run_tool_sample(alias)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.error("sample failed for %s: %s", tool_name, exc)
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
@@ -576,7 +581,7 @@ async def mcp_jsonrpc(request: Request):
 
     try:
         payload = await request.json()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return JSONResponse(
             status_code=400,
             content={"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": str(exc)}},
@@ -618,7 +623,7 @@ async def a2a_jsonrpc(request: Request):
 
     try:
         payload = await request.json()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return JSONResponse(
             status_code=400,
             content={"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": str(exc)}},

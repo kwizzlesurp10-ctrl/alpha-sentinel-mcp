@@ -1,9 +1,9 @@
 """Price feed module - CoinGecko API integration."""
 
-import httpx
-from typing import Optional
-from datetime import datetime
 import logging
+from datetime import datetime
+
+import httpx
 
 from app.config import settings
 
@@ -186,7 +186,7 @@ async def fetch_price_endpoint(symbol: str) -> dict:
             logger.error(f"Price fetch error on all sources: {cb_err}")
             return {
                 "success": False,
-                "error": f"Failed to fetch price: {str(e)} (fallback: {str(cb_err)})",
+                "error": f"Failed to fetch price: {e!s} (fallback: {cb_err!s})",
                 "symbol": symbol,
                 "suggestions": ["btc", "eth", "sol", "ada", "dot"],
             }

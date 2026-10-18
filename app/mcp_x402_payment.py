@@ -9,8 +9,11 @@ from typing import Any
 
 from app.config import settings
 from app.payments import TOOL_PRICES
-from app.tools_registry import FREE_TOOLS, PAID_TOOLS, TOOL_SPECS, get_tool_spec
-from app.tool_payment_gate import _tool_discovery_example, _tool_discovery_output_example
+from app.tool_payment_gate import (
+    _tool_discovery_example,
+    _tool_discovery_output_example,
+)
+from app.tools_registry import FREE_TOOLS, PAID_TOOLS, get_tool_spec
 
 logger = logging.getLogger(__name__)
 
@@ -32,13 +35,17 @@ def get_mcp_resource_server() -> Any:
     server = x402_services._resource_server(settings.x402_default_network)
     try:
         server.register_extension(bazaar_resource_server_extension)
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
     return server
 
 
 def _bazaar_extensions(tool_name: str) -> dict[str, Any]:
-    from x402.extensions.bazaar import DeclareMcpDiscoveryConfig, OutputConfig, declare_mcp_discovery_extension
+    from x402.extensions.bazaar import (
+        DeclareMcpDiscoveryConfig,
+        OutputConfig,
+        declare_mcp_discovery_extension,
+    )
 
     spec = get_tool_spec(tool_name) or {}
     return declare_mcp_discovery_extension(
@@ -156,8 +163,9 @@ async def execute_paid_mcp_tool(
             "structuredContent": sc,
         }
 
-    from app import x402_services
     from x402.http import encode_payment_signature_header
+
+    from app import x402_services
 
     try:
         sig = encode_payment_signature_header(payment_body)
@@ -165,7 +173,6 @@ async def execute_paid_mcp_tool(
         sig = json.dumps(payment_body)
 
     accepts, _, _ = build_tool_payment_bundle(tool_name)
-    req = accepts[0]
     from x402.http import encode_payment_required_header
     from x402.schemas import PaymentRequired
 
@@ -185,7 +192,7 @@ async def execute_paid_mcp_tool(
 
     try:
         tool_result = await handler(arguments)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         tool_result = {
             "isError": True,
             "content": [{"type": "text", "text": str(exc)}],
