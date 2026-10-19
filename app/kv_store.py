@@ -55,8 +55,27 @@ class InMemoryKvStore:
         self._data.clear()
 
 
+DEFAULT_KEY_PREFIX = "alpha-sentinel:"
+
+
+def key_prefix() -> str:
+    """Namespace for every key we write (the Upstash DB is shared with x402-mcp)."""
+    raw = os.environ.get("KV_KEY_PREFIX")
+    prefix = DEFAULT_KEY_PREFIX if raw is None else raw.strip()
+    return prefix or DEFAULT_KEY_PREFIX
+
+
+def namespaced(key: str) -> str:
+    prefix = key_prefix()
+    return key if key.startswith(prefix) else f"{prefix}{key}"
+
+
 class UpstashKvStore:
-    """Upstash Redis REST — SET with NX and EX for atomic claim."""
+    """Upstash Redis REST — SET with NX and EX for atomic claim.
+
+    All keys are namespaced with ``key_prefix()`` so this service never reads,
+    overwrites or deletes another tenant's keys on a shared database.
+    """
 
     def available(self) -> bool:
         from app.redis_client import kv_configured
@@ -67,7 +86,7 @@ class UpstashKvStore:
         from app.redis_client import command
 
         # SET key value EX ttl NX → null when not set
-        result = await command("SET", key, value, "EX", ttl_seconds, "NX")
+        result = await command("SET", namespaced(key), value, "EX", ttl_seconds, "NX")
         if result is None:
             return False
         text = str(result).upper()
@@ -76,12 +95,12 @@ class UpstashKvStore:
     async def set(self, key: str, value: str, ttl_seconds: int) -> None:
         from app.redis_client import command
 
-        await command("SET", key, value, "EX", ttl_seconds)
+        await command("SET", namespaced(key), value, "EX", ttl_seconds)
 
     async def get(self, key: str) -> str | None:
         from app.redis_client import command
 
-        result = await command("GET", key)
+        result = await command("GET", namespaced(key))
         if result is None:
             return None
         return str(result)
@@ -89,7 +108,7 @@ class UpstashKvStore:
     async def delete(self, key: str) -> None:
         from app.redis_client import command
 
-        await command("DEL", key)
+        await command("DEL", namespaced(key))
 
 
 _store_override: KvStore | None = None
