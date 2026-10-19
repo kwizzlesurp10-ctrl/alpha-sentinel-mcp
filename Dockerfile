@@ -1,51 +1,44 @@
-# Alpha Sentinel MCP Server - Dockerfile
-
-# Multi-stage build for minimal production image
-FROM python:3.12-slim as builder
+# Alpha Sentinel MCP — production image (seller host). Never bake EVM_PRIVATE_KEY.
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
-    cargo \
     && rm -rf /var/lib/apt/lists/*
 
-# Create virtual environment
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Production stage
-FROM python:3.12-slim as production
+FROM python:3.12-slim AS production
 
 WORKDIR /app
 
-# Create non-root user for security
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+RUN groupadd --system appgroup && useradd --system --gid appgroup --home /app appuser
 
-# Copy virtual environment from builder
 COPY --from=builder /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    HOST=0.0.0.0 \
+    PORT=8403
 
-# Copy application code
 COPY app/ ./app/
+COPY scripts/ ./scripts/
 COPY run_stdio.py ./
 COPY server.json ./
 
-# Set ownership to non-root user
-RUN chown -R appuser:appgroup /app
+RUN chmod +x /app/scripts/entrypoint.sh \
+    && chown -R appuser:appgroup /app
+
 USER appuser
 
-# Expose port
 EXPOSE 8403
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:8403/health')" || exit 1
+HEALTHCHECK --interval=30s --timeout=8s --start-period=15s --retries=3 \
+    CMD python /app/scripts/healthcheck.py
 
-# Default command (FastAPI server)
-CMD ["uvicorn", "app.application:app", "--host", "0.0.0.0", "--port", "8403"]
+ENTRYPOINT ["/app/scripts/entrypoint.sh"]

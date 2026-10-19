@@ -1,0 +1,16 @@
+{
+	email {$ACME_EMAIL:ops@localhost}
+}
+
+:80 {
+	encode gzip
+	reverse_proxy api:8403 {
+		health_uri /health
+		health_interval 30s
+	}
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		X-Frame-Options DENY
+	}
+}

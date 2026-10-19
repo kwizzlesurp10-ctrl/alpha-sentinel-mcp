@@ -1,0 +1,36 @@
+[Unit]
+Description=Alpha Sentinel MCP HTTP seller (uvicorn)
+Documentation=https://github.com/kwizzlesurp10-ctrl/alpha-sentinel-mcp
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sentinel
+Group=sentinel
+WorkingDirectory=/opt/alpha-sentinel-mcp
+EnvironmentFile=-/etc/alpha-sentinel-mcp.env
+Environment=HOST=0.0.0.0
+Environment=PORT=8403
+Environment=PYTHONUNBUFFERED=1
+ExecStartPre=/usr/bin/python3 -c "from app.server_boot import assert_seller_safe; assert_seller_safe()"
+ExecStart=/opt/alpha-sentinel-mcp/.venv/bin/uvicorn app.application:app --host 0.0.0.0 --port 8403 --proxy-headers --forwarded-allow-ips=127.0.0.1
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/alpha-sentinel-mcp/ledger
+CapabilityBoundingSet=
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+SystemCallArchitectures=native
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

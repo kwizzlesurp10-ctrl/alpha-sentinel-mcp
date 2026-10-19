@@ -1,0 +1,17 @@
+{
+	email {$ACME_EMAIL}
+}
+
+{$PUBLIC_HOST} {
+	encode gzip
+	reverse_proxy api:8403 {
+		health_uri /health
+		health_interval 30s
+	}
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		X-Frame-Options DENY
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+}

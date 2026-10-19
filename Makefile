@@ -1,4 +1,4 @@
-.PHONY: help install dev test lint type-check security docker-build run mcp
+.PHONY: help install dev test lint type-check security docker-build docker-run compose-up compose-down up vm-host run mcp
 
 # Default target
 help:
@@ -22,9 +22,12 @@ help:
 	@echo "  make type-check  - Run MyPy type checking"
 	@echo "  make security    - Run Bandit security scan"
 	@echo ""
-	@echo "Docker:"
+	@echo "Docker / Kubuntu VM:"
+	@echo "  make compose-up   - API + Caddy on this machine"
+	@echo "  make compose-down - Stop Compose stack"
 	@echo "  make docker-build - Build Docker image"
-	@echo "  make docker-run   - Run container locally"
+	@echo "  make docker-run   - Run seller container (no spend key)"
+	@echo "  make vm-host      - Print Kubuntu KVM host bootstrap command"
 	@echo ""
 	@echo "Production:"
 	@echo "  make prod        - Deploy to Render/Vercel"
@@ -43,12 +46,12 @@ install: venv
 
 # Development Server
 dev:
-	@echo "🚀 Starting development server on port 8403..."
+	@echo "Starting development server on port 8403..."
 	.venv/bin/uvicorn app.application:app --reload --host 0.0.0.0 --port 8403 --log-level info
 
 # MCP Stdio Transport
 mcp:
-	@echo "🤖 Starting MCP stdio transport..."
+	@echo "Starting MCP stdio transport..."
 	.venv/bin/python run_stdio.py
 
 # Run Production Server
@@ -82,22 +85,40 @@ lint-fix:
 docs:
 	.venv/bin/griffe --output docs/api-reference.md app/
 
-# Docker
+# Docker / self-host
 docker-build:
 	docker build -t alpha-sentinel-mcp:latest .
 
 docker-run:
-	docker run -p 8403:8403 \
+	docker run --rm --name alpha-sentinel-mcp \
+		-p 127.0.0.1:8403:8403 \
+		-e HOST=0.0.0.0 \
+		-e PORT=8403 \
 		-e X402_PAY_TO_ADDRESS=${X402_PAY_TO_ADDRESS} \
-		-e EVM_PRIVATE_KEY=${EVM_PRIVATE_KEY} \
+		-e PUBLIC_BASE_URL=${PUBLIC_BASE_URL:-http://127.0.0.1:8403} \
 		alpha-sentinel-mcp:latest
 
+compose-up:
+	@test -f .env || cp .env.example .env
+	docker compose up -d --build
+	@echo "health: curl -fsS http://127.0.0.1:8403/health"
+
+compose-down:
+	docker compose down
+
+up: compose-up
+
+vm-host:
+	@echo "sudo deploy/kubuntu/bootstrap-host.sh"
+	@echo "SSH_PUBKEY=\$$HOME/.ssh/id_ed25519.pub deploy/kubuntu/create-vm.sh"
+	@echo "See docs/KUBUNTU-VM.md"
+
 docker-clean:
-	docker rm -f alpha-sentinel-mcp-container 2>/dev/null || true
+	docker rm -f alpha-sentinel-mcp 2>/dev/null || true
 
 # Deployment
 prod:
-	@echo "🚢 Deploying to production..."
+	@echo "Deploying to production..."
 	@echo "1. Ensure all tests pass: make test"
 	@echo "2. Push to main branch to trigger CI/CD"
 	@echo "3. Dashboard will deploy to Vercel automatically"
@@ -111,22 +132,3 @@ clean:
 	find . -name ".mypy_cache" -type d -exec rm -rf {} + 2>/dev/null || true
 	rm -rf htmlcov/ .coverage coverage.xml 2>/dev/null || true
 	rm -rf dist/ *.egg-info 2>/dev/null || true
-
-# Git Operations
-commit:
-	git add .
-	git commit -m "$(msg)"
-	git push origin $(branch)
-
-pr-create:
-	gh pr create --title "$(title)" --body "$(body)" --base main --head $(branch) 2>/dev/null || echo "Install gh CLI first"
-
-# Monitoring
-stats:
-	@echo "=== Alpha Sentinel Statistics ==="
-	curl -s http://localhost:8403/stats | python -m json.tool 2>/dev/null || echo "Server not running"
-
-quota:
-	@echo "=== Quota Status ==="
-	@read -p "Enter agent_id: " agent_id; \
-	curl -s "http://localhost:8403/quota/$$agent_id" | python -m json.tool 2>/dev/null || echo "Server not running"
