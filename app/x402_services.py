@@ -1256,6 +1256,76 @@ async def build_payment_required_for_resource(
     }
 
 
+
+async def verify_from_headers(
+    payment_signature: str, payment_required: str
+) -> dict[str, Any]:
+    """Verify only — used when settlement is deferred until the handler succeeds."""
+
+    try:
+        payload, requirements = _decode_payment_inputs(payment_signature, payment_required)
+    except Exception as exc:
+        logger.warning("payment decode failed: %s", exc)
+        return _invalid_payment_result(f"malformed_payment: {exc}")
+    try:
+        network = _network_of(requirements)
+        server = _resource_server(network)
+        verify_result = await server.verify_payment(payload, requirements)
+    except Exception as exc:
+        logger.warning("payment verify failed: %s", exc)
+        return _invalid_payment_result(f"verify_failed: {exc}")
+    return {
+        "is_valid": bool(verify_result.is_valid),
+        "invalid_reason": getattr(verify_result, "invalid_reason", None),
+        "settlement": None,
+        "settlement_error": None,
+        "payment_settled": False,
+        "facilitator_url": _facilitator_url_for(network),
+        "sdk": "x402ResourceServer.verify_payment",
+        "_payload": payload,
+        "_requirements": requirements,
+        "_network": network,
+    }
+
+
+async def settle_verified_payment(verify_ctx: dict[str, Any]) -> dict[str, Any]:
+    """Settle a payment that already passed verify_from_headers."""
+    payload = verify_ctx.get("_payload")
+    requirements = verify_ctx.get("_requirements")
+    network = verify_ctx.get("_network")
+    if payload is None or requirements is None:
+        return _invalid_payment_result("missing_verified_payment_context")
+    try:
+        server = _resource_server(network)
+        settle_result = await server.settle_payment(payload, requirements)
+        settlement = (
+            settle_result.model_dump()
+            if hasattr(settle_result, "model_dump")
+            else (settle_result if isinstance(settle_result, dict) else {})
+        )
+        ok = settlement.get("success") is True
+        return {
+            "is_valid": True,
+            "invalid_reason": None if ok else settlement.get("errorReason") or settlement.get("error"),
+            "settlement": settlement,
+            "settlement_error": None if ok else (settlement.get("errorReason") or settlement.get("error") or "settlement_failed"),
+            "payment_settled": ok,
+            "facilitator_url": _facilitator_url_for(network),
+            "sdk": "x402ResourceServer.settle_payment",
+        }
+    except Exception as exc:
+        logger.warning("deferred settle failed: %s", exc)
+        return {
+            "is_valid": True,
+            "invalid_reason": None,
+            "settlement": None,
+            "settlement_error": str(exc)[:300],
+            "payment_settled": False,
+            "facilitator_url": _facilitator_url_for(network),
+            "sdk": "x402ResourceServer.settle_payment",
+        }
+
+
 async def verify_and_settle_from_headers(
     payment_signature: str,
     payment_required_header: str,

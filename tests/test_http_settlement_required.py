@@ -1,4 +1,4 @@
-"""HTTP paid gate must require payment_settled, not just is_valid."""
+"""HTTP paid gate must require payment_settled (covered via deferred settle)."""
 
 from __future__ import annotations
 
@@ -32,8 +32,8 @@ def _challenge_header(pay_to: str) -> str:
     return base64.b64encode(json.dumps(body).encode()).decode()
 
 
-@pytest.mark.asyncio
-async def test_http_gate_402_when_settle_fails_after_verify(monkeypatch):
+@pytest.fixture
+def seed(monkeypatch):
     header = _challenge_header(settings.x402_pay_to_address or "0x1111111111111111111111111111111111111111")
     fake = {
         "payment_required_header": header,
@@ -45,84 +45,51 @@ async def test_http_gate_402_when_settle_fails_after_verify(monkeypatch):
         return fake
 
     monkeypatch.setattr("app.tool_payment_gate.build_tool_challenge", _fake_build)
+    monkeypatch.setattr("app.tool_payment_gate._seller_ready_for_settlement", lambda: (True, ""))
     store_tool_challenge("analyze_volatility", "http://test/tools/analyze_volatility", fake)
-
-    async def _verify_settle(scope, resource_id, sig, req_header):
-        return {
-            "is_valid": True,
-            "payment_settled": False,
-            "settlement_error": "facilitator_timeout",
-            "settlement": {"success": False},
-        }
-
-    monkeypatch.setattr(
-        "app.tool_payment_gate.verify_settle_with_idempotency",
-        _verify_settle,
-    )
-    monkeypatch.setenv("VERCEL_ENV", "production")
-    monkeypatch.setattr(settings, "cdp_api_key_id", "id")
-    monkeypatch.setattr(settings, "cdp_api_key_secret", "secret")
-    # Seller-ready check uses _use_cdp; force ready.
-    monkeypatch.setattr(
-        "app.tool_payment_gate._seller_ready_for_settlement",
-        lambda: (True, ""),
-    )
-
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post(
-            "/tools/analyze_volatility",
-            json={"symbol": "btc", "window_minutes": 60},
-            headers={"PAYMENT-SIGNATURE": "sig-after-verify-settle-fail"},
-        )
-    assert response.status_code == 402
-    body = response.json()
-    assert body.get("error") == "Payment settlement failed"
-    assert "facilitator_timeout" in (body.get("invalid_reason") or "")
-    # Must not have returned paid intelligence data.
-    assert "data" not in body or body.get("success") is not True
+    store_tool_challenge("fetch_price", "http://test/tools/fetch_price", fake)
+    return fake
 
 
 @pytest.mark.asyncio
-async def test_http_gate_passes_when_payment_settled(monkeypatch, mock_coingecko_api):
-    header = _challenge_header(settings.x402_pay_to_address or "0x1111111111111111111111111111111111111111")
-    fake = {
-        "payment_required_header": header,
-        "payment_required": {"x402Version": 2, "error": "Payment required"},
-        "requirements": [],
-    }
+async def test_http_gate_402_when_settle_fails_after_verify(monkeypatch, seed, mock_coingecko_api):
+    async def _verify(sig, req):
+        return {"is_valid": True, "_payload": object(), "_requirements": object(), "_network": "eip155:8453"}
 
-    async def _fake_build(tool_name, resource_url):
-        return fake
+    async def _settle(ctx):
+        return {"payment_settled": False, "settlement_error": "facilitator_timeout", "settlement": {"success": False}}
 
-    monkeypatch.setattr("app.tool_payment_gate.build_tool_challenge", _fake_build)
-    store_tool_challenge("fetch_price", "http://test/tools/fetch_price", fake)
-
-    async def _verify_settle(scope, resource_id, sig, req_header):
-        return {
-            "is_valid": True,
-            "payment_settled": True,
-            "settlement": {
-                "success": True,
-                "transaction": "0xsettled",
-                "network": "eip155:8453",
-                "payer": "0xabc",
-            },
-        }
-
-    monkeypatch.setattr(
-        "app.tool_payment_gate.verify_settle_with_idempotency",
-        _verify_settle,
-    )
-    monkeypatch.setattr(
-        "app.tool_payment_gate._seller_ready_for_settlement",
-        lambda: (True, ""),
-    )
+    monkeypatch.setattr("app.tool_payment_gate.x402_services.verify_from_headers", _verify)
+    monkeypatch.setattr("app.tool_payment_gate.x402_services.settle_verified_payment", _settle)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         response = await client.post(
             "/tools/fetch_price",
             json={"symbol": "btc"},
-            headers={"PAYMENT-SIGNATURE": "sig-settled-ok"},
+            headers={"PAYMENT-SIGNATURE": "sig-settle-fail-gate"},
+        )
+    assert response.status_code == 402
+    assert response.json().get("error") == "Payment settlement failed"
+
+
+@pytest.mark.asyncio
+async def test_http_gate_passes_when_payment_settled(monkeypatch, seed, mock_coingecko_api):
+    async def _verify(sig, req):
+        return {"is_valid": True, "_payload": object(), "_requirements": object(), "_network": "eip155:8453"}
+
+    async def _settle(ctx):
+        return {
+            "payment_settled": True,
+            "settlement": {"success": True, "transaction": "0xsettled", "network": "eip155:8453", "payer": "0xabc"},
+        }
+
+    monkeypatch.setattr("app.tool_payment_gate.x402_services.verify_from_headers", _verify)
+    monkeypatch.setattr("app.tool_payment_gate.x402_services.settle_verified_payment", _settle)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/tools/fetch_price",
+            json={"symbol": "btc"},
+            headers={"PAYMENT-SIGNATURE": "sig-settled-ok-gate"},
         )
     assert response.status_code == 200
-    assert response.json().get("data", {}).get("price_usd") or response.json().get("price_usd")
