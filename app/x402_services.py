@@ -727,6 +727,39 @@ def _build_resource_info(params: BuildSellerRequirementsInput, description: str)
     )
 
 
+
+def _local_exact_requirement(params, network: str, pay_to: str, description: str):
+    """Build PaymentRequirements for exact/USDC without a live facilitator.
+
+    Always includes EIP-712 extra name/version so the challenge is signable.
+    """
+    from x402.schemas import PaymentRequirements
+
+    price_str = str(params.price or "$0.01").lstrip("$")
+    try:
+        atomic = float(price_str) * 1_000_000
+    except ValueError:
+        atomic = 10_000.0
+    if "solana" in network.lower():
+        asset = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+        extra = {"name": "USD Coin", "version": "2"}
+    elif "42161" in network:
+        asset = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
+        extra = {"name": "USD Coin", "version": "2"}
+    else:
+        asset = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+        extra = {"name": "USD Coin", "version": "2"}
+    return PaymentRequirements(
+        scheme="exact",
+        network=network,
+        pay_to=pay_to,
+        amount=str(int(round(atomic))),
+        asset=asset,
+        max_timeout_seconds=300,
+        extra=extra,
+    )
+
+
 def build_seller_requirements(params: BuildSellerRequirementsInput) -> dict[str, Any]:
     pay_to = params.pay_to or settings.x402_pay_to_address
     if not pay_to:
@@ -767,17 +800,16 @@ def build_seller_requirements(params: BuildSellerRequirementsInput) -> dict[str,
             server.initialize()
             requirements.extend(server.build_payment_requirements(config))
         except Exception as exc:
-            # Fail closed: never emit a challenge with empty `extra` or a
-            # hand-rolled amount. Buyers cannot sign that, and it would still
-            # look like a valid 402 to a crawler.
-            logger.error(
-                "Facilitator initialize failed for %s — refusing offline fallback: %s",
+            # Challenge construction does not need a live facilitator — only
+            # verify/settle do. Build the exact-scheme requirements locally
+            # with the Base USDC EIP-712 extra so buyers can sign. Never emit
+            # empty `extra={}` (that was the retired offline bug).
+            logger.warning(
+                "Facilitator initialize skipped for %s; building local exact requirements: %s",
                 net,
                 exc,
             )
-            raise RuntimeError(
-                f"x402 facilitator unavailable for {net}; cannot build payment requirements"
-            ) from exc
+            requirements.append(_local_exact_requirement(params, net, pay_to, description))
 
     # Bazaar discoverability: with a resource_url the challenge carries
     # ResourceInfo, and (unless opted out) the bazaar discovery extension —

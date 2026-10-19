@@ -35,8 +35,8 @@ def test_settings_refuse_retired_pay_to(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_build_seller_requirements_fails_closed_when_facilitator_offline(monkeypatch):
-    """Offline facilitator must raise — never emit extra={} challenges."""
+async def test_build_seller_requirements_local_fallback_has_usdc_extra(monkeypatch):
+    """Offline facilitator still builds a signable challenge (never extra={})."""
     from app import x402_services
     from app.models import BuildSellerRequirementsInput
 
@@ -53,19 +53,27 @@ async def test_build_seller_requirements_fails_closed_when_facilitator_offline(m
 
     monkeypatch.setattr(x402_pkg, "x402ResourceServer", lambda *_a, **_k: Boom())
 
-    with pytest.raises(RuntimeError, match="facilitator unavailable"):
-        x402_services.build_seller_requirements(
-            BuildSellerRequirementsInput(
-                network="eip155:8453",
-                pay_to=CANONICAL_PAY_TO,
-                price="$0.005",
-                scheme="exact",
-                description="test",
-                resource_url="https://example.com/tools/fetch_price",
-                mime_type="application/json",
-                discoverable=False,
-            )
+    built = x402_services.build_seller_requirements(
+        BuildSellerRequirementsInput(
+            network="eip155:8453",
+            pay_to=CANONICAL_PAY_TO,
+            price="$0.005",
+            scheme="exact",
+            description="test",
+            resource_url="https://example.com/tools/fetch_price",
+            mime_type="application/json",
+            discoverable=False,
         )
+    )
+    reqs = built.get("requirements") or []
+    assert reqs, "must produce accepts"
+    first = reqs[0]
+    extra = first.extra if hasattr(first, "extra") else (first.get("extra") if isinstance(first, dict) else None)
+    if hasattr(extra, "model_dump"):
+        extra = extra.model_dump()
+    assert extra == {"name": "USD Coin", "version": "2"}
+    amount = first.amount if hasattr(first, "amount") else first.get("amount")
+    assert amount == "5000"
 
 
 def test_setup_script_default_is_canonical():
