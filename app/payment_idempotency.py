@@ -219,3 +219,51 @@ def clear() -> None:
     from app import payment_replay as legacy
 
     legacy.clear()
+
+
+def _response_key(scope: str, resource_id: str, fingerprint: str) -> str:
+    return f"x402:resp:{scope}:{resource_id}:{fingerprint}"
+
+
+async def cache_paid_response(
+    scope: str,
+    resource_id: str,
+    fingerprint: str,
+    *,
+    status_code: int,
+    body: str,
+    payment_response_header: str | None = None,
+    ttl_seconds: int = DEFAULT_TTL_SECONDS,
+) -> None:
+    """Store the successful paid response so an idempotent retry can replay it."""
+    import json
+
+    store = get_store()
+    payload = json.dumps(
+        {
+            "status_code": status_code,
+            "body": body,
+            "payment_response_header": payment_response_header,
+        }
+    )
+    await store.set(_response_key(scope, resource_id, fingerprint), payload, ttl_seconds)
+
+
+async def load_cached_paid_response(
+    scope: str,
+    resource_id: str,
+    fingerprint: str,
+) -> dict[str, Any] | None:
+    import json
+
+    store = get_store()
+    raw = await store.get(_response_key(scope, resource_id, fingerprint))
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict) or "status_code" not in data or "body" not in data:
+        return None
+    return data

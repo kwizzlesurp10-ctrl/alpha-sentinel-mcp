@@ -21,8 +21,12 @@ from app.deploy_env import is_vercel_production
 from app.models import BuildSellerRequirementsInput
 from app.payment_idempotency import (
     IdempotencyStoreRequired,
+    begin_payment_attempt,
+    cache_paid_response,
+    complete_payment_attempt,
     idempotency_unavailable_response,
-    verify_settle_with_idempotency,
+    load_cached_paid_response,
+    release_payment_attempt,
 )
 from app.payments import TOOL_PRICES
 from app.tools_registry import PAID_TOOLS, get_tool_spec
@@ -243,10 +247,10 @@ async def handle_paid_tool_request(
             headers={"PAYMENT-REQUIRED": auth_header},
         )
 
+    # Idempotency: claim before verify. A prior successful payment returns the
+    # cached response so the buyer is not charged twice and still gets data.
     try:
-        result = await verify_settle_with_idempotency(
-            "http", tool_name, sig, auth_header
-        )
+        begin = await begin_payment_attempt("http", tool_name, sig)
     except IdempotencyStoreRequired:
         return JSONResponse(
             status_code=503,
@@ -254,47 +258,139 @@ async def handle_paid_tool_request(
             content=idempotency_unavailable_response(),
         )
 
-    if result.get("idempotency_blocked"):
+    if not begin.allowed:
+        cached = await load_cached_paid_response("http", tool_name, begin.fingerprint)
+        if cached:
+            headers = {
+                "Access-Control-Expose-Headers": "PAYMENT-REQUIRED,PAYMENT-RESPONSE",
+                "X-Payment-Idempotent-Replay": "1",
+            }
+            if cached.get("payment_response_header"):
+                headers["PAYMENT-RESPONSE"] = cached["payment_response_header"]
+            try:
+                body = json.loads(cached["body"])
+            except json.JSONDecodeError:
+                body = {"raw": cached["body"]}
+            return JSONResponse(
+                status_code=int(cached["status_code"]),
+                content=body,
+                headers=headers,
+            )
         return JSONResponse(
             status_code=402,
             content={
                 "error": "replay_rejected",
-                "detail": result.get("reason"),
+                "detail": begin.reason or "payment_already_consumed",
             },
             headers={"PAYMENT-REQUIRED": auth_header},
         )
 
-    if not result.get("is_valid"):
+    # Verify only — settlement waits until the handler succeeds (so a 400 on
+    # bad input never burns the USDC authorization).
+    try:
+        verified = await x402_services.verify_from_headers(sig, auth_header)
+    except Exception:
+        await release_payment_attempt("http", tool_name, begin.fingerprint)
+        raise
+
+    if not verified.get("is_valid"):
+        await release_payment_attempt("http", tool_name, begin.fingerprint)
         return JSONResponse(
             status_code=402,
             content={
                 "error": "Payment verification failed",
-                "invalid_reason": result.get("invalid_reason"),
+                "invalid_reason": verified.get("invalid_reason"),
             },
             headers={"PAYMENT-REQUIRED": auth_header},
         )
 
-    # Verify alone is not enough — serve the paid response only after the
-    # facilitator reports a successful settle (matches MCP + A2A gates).
-    if not result.get("payment_settled"):
+    verified["_payment_required"] = auth_header
+    request.state.x402_pending = {
+        "scope": "http",
+        "tool_name": tool_name,
+        "fingerprint": begin.fingerprint,
+        "signature": sig,
+        "auth_header": auth_header,
+        "verify_ctx": verified,
+    }
+    return None
+
+
+async def finalize_pending_payment(request: Request, response: JSONResponse) -> JSONResponse:
+    """Settle (on 2xx) or release (on error) a payment deferred by the gate."""
+    pending = getattr(request.state, "x402_pending", None)
+    if not pending:
+        return response
+
+    scope = pending["scope"]
+    tool_name = pending["tool_name"]
+    fingerprint = pending["fingerprint"]
+
+    if response.status_code >= 400:
+        await release_payment_attempt(scope, tool_name, fingerprint)
+        request.state.x402_pending = None
+        return response
+
+    settled = await x402_services.settle_verified_payment(pending["verify_ctx"])
+    if not settled.get("payment_settled"):
+        await release_payment_attempt(scope, tool_name, fingerprint)
+        request.state.x402_pending = None
         return JSONResponse(
             status_code=402,
             content={
                 "error": "Payment settlement failed",
-                "invalid_reason": result.get("settlement_error")
-                or result.get("invalid_reason")
+                "invalid_reason": settled.get("settlement_error")
+                or settled.get("invalid_reason")
                 or "settlement_failed",
-                "settlement_error": result.get("settlement_error"),
+                "settlement_error": settled.get("settlement_error"),
             },
-            headers={"PAYMENT-REQUIRED": auth_header},
+            headers={
+                "PAYMENT-REQUIRED": pending["auth_header"],
+                "Access-Control-Expose-Headers": "PAYMENT-REQUIRED,PAYMENT-RESPONSE",
+            },
         )
 
-    settlement = result.get("settlement") or {}
+    settlement = settled.get("settlement") or {}
+    if not await complete_payment_attempt(scope, tool_name, fingerprint, settlement):
+        await release_payment_attempt(scope, tool_name, fingerprint)
+        request.state.x402_pending = None
+        return JSONResponse(
+            status_code=402,
+            content={
+                "error": "replay_rejected",
+                "detail": "settlement_tx_replay",
+            },
+            headers={"PAYMENT-REQUIRED": pending["auth_header"]},
+        )
 
+    receipt = settlement_receipt_header(settlement)
     request.state.x402_settlement = settlement
-    request.state.x402_payment_settled = bool(result.get("payment_settled"))
-    request.state.x402_receipt_header = settlement_receipt_header(settlement)
-    return None
+    request.state.x402_payment_settled = True
+    request.state.x402_receipt_header = receipt
+    request.state.x402_pending = None
+
+    if receipt:
+        response.headers["PAYMENT-RESPONSE"] = receipt
+        response.headers.setdefault(
+            "Access-Control-Expose-Headers",
+            "PAYMENT-REQUIRED,PAYMENT-RESPONSE",
+        )
+
+    try:
+        body_bytes = response.body
+        body_text = body_bytes.decode() if isinstance(body_bytes, (bytes, bytearray)) else str(body_bytes)
+        await cache_paid_response(
+            scope,
+            tool_name,
+            fingerprint,
+            status_code=response.status_code,
+            body=body_text,
+            payment_response_header=receipt,
+        )
+    except Exception as exc:
+        logger.warning("failed to cache paid response: %s", exc)
+
+    return response
 
 
 def attach_payment_response(response: JSONResponse, request: Request) -> JSONResponse:

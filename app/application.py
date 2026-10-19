@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from datetime import UTC, datetime
 
@@ -33,7 +34,7 @@ from app.payto_guard import assert_pay_to_allowed
 from app.rate_limit import allow_free_request
 from app.sample_cache import get as sample_cache_get
 from app.sample_cache import set as sample_cache_set
-from app.tool_payment_gate import handle_paid_tool_request
+from app.tool_payment_gate import finalize_pending_payment, handle_paid_tool_request
 from app.tools_registry import (
     FREE_TOOLS,
     TOOL_COUNT,
@@ -114,6 +115,26 @@ def _as_list(value, default):
     return default
 
 
+
+async def _as_json_response(response):
+    """Re-buffer a BaseHTTPMiddleware StreamingResponse into JSONResponse."""
+    if isinstance(response, JSONResponse):
+        return response
+    body = b""
+    if hasattr(response, "body_iterator"):
+        async for chunk in response.body_iterator:
+            body += chunk if isinstance(chunk, (bytes, bytearray)) else bytes(chunk)
+    elif hasattr(response, "body"):
+        raw = response.body
+        body = raw if isinstance(raw, (bytes, bytearray)) else bytes(raw)
+    try:
+        content = json.loads(body.decode() or "null")
+    except Exception:
+        content = {"raw": body.decode("utf-8", errors="replace")}
+    headers = {k: v for k, v in response.headers.items() if k.lower() != "content-length"}
+    return JSONResponse(status_code=response.status_code, content=content, headers=headers)
+
+
 @app.middleware("http")
 async def normalize_vercel_api_path(request: Request, call_next):
     """Map Vercel function paths so routes resolve under /api/* and bare /*.
@@ -169,17 +190,22 @@ async def normalize_vercel_api_path(request: Request, call_next):
                 return gate
 
     response = await call_next(request)
-    if hasattr(request.state, "x402_receipt_header"):
-        from fastapi.responses import Response
+    from fastapi.responses import JSONResponse, Response
 
-        if isinstance(response, Response):
-            receipt = request.state.x402_receipt_header
-            if receipt:
-                response.headers["PAYMENT-RESPONSE"] = receipt
-                response.headers.setdefault(
-                    "Access-Control-Expose-Headers",
-                    "PAYMENT-REQUIRED,PAYMENT-RESPONSE",
-                )
+    if getattr(request.state, "x402_pending", None) is not None:
+        # BaseHTTPMiddleware wraps the downstream body as a StreamingResponse,
+        # so re-buffer it into a JSONResponse before deferred settle/cache.
+        response = await _as_json_response(response)
+        response = await finalize_pending_payment(request, response)
+
+    if hasattr(request.state, "x402_receipt_header") and isinstance(response, Response):
+        receipt = request.state.x402_receipt_header
+        if receipt:
+            response.headers["PAYMENT-RESPONSE"] = receipt
+            response.headers.setdefault(
+                "Access-Control-Expose-Headers",
+                "PAYMENT-REQUIRED,PAYMENT-RESPONSE",
+            )
     return response
 
 
