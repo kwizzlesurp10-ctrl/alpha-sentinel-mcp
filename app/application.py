@@ -29,6 +29,7 @@ from app.payments import (
     paid_tool_for_request_path,
     resource_url_from_path,
 )
+from app.payto_guard import assert_pay_to_allowed
 from app.rate_limit import allow_free_request
 from app.sample_cache import get as sample_cache_get
 from app.sample_cache import set as sample_cache_set
@@ -41,6 +42,9 @@ from app.x402_services import X402Services
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Refuse retired seller wallets before serving any route.
+assert_pay_to_allowed(settings.x402_pay_to_address)
 
 app = FastAPI(
     title="Alpha Sentinel MCP Server",

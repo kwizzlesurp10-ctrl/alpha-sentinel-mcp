@@ -35,6 +35,15 @@ class Settings(BaseSettings):
             cleaned[k] = v
         return cleaned
 
+
+    @field_validator("x402_pay_to_address")
+    @classmethod
+    def refuse_retired_pay_to(cls, v: str | None) -> str | None:
+        from app.payto_guard import assert_pay_to_allowed
+
+        assert_pay_to_allowed(v)
+        return v
+
     # Server settings
     host: str = "0.0.0.0"  # nosec B104 — intentional bind for containers/Render
     port: int = 8403
