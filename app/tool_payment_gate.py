@@ -274,6 +274,21 @@ async def handle_paid_tool_request(
             headers={"PAYMENT-REQUIRED": auth_header},
         )
 
+    # Verify alone is not enough — serve the paid response only after the
+    # facilitator reports a successful settle (matches MCP + A2A gates).
+    if not result.get("payment_settled"):
+        return JSONResponse(
+            status_code=402,
+            content={
+                "error": "Payment settlement failed",
+                "invalid_reason": result.get("settlement_error")
+                or result.get("invalid_reason")
+                or "settlement_failed",
+                "settlement_error": result.get("settlement_error"),
+            },
+            headers={"PAYMENT-REQUIRED": auth_header},
+        )
+
     settlement = result.get("settlement") or {}
 
     request.state.x402_settlement = settlement
