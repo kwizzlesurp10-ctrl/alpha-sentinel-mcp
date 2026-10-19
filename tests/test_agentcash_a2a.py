@@ -255,3 +255,76 @@ async def test_http_fetch_price_unpaid_returns_402(client):
     body = response.json()
     assert body.get("network")
     assert "fetch_price" in str(body.get("resource") or "")
+
+
+@pytest.mark.asyncio
+async def test_a2a_whitespace_skill_still_requires_payment(client):
+    """Trailing whitespace must not bypass the paid-skill gate."""
+    from app.a2a import clear_task_store
+
+    clear_task_store()
+    send = await client.post(
+        "/a2a",
+        json={
+            "jsonrpc": "2.0",
+            "id": "ws-1",
+            "method": "message/send",
+            "params": {
+                "message": {
+                    "role": "user",
+                    "parts": [{"kind": "data", "data": {"skillId": "fetch_price ", "symbol": "btc"}}],
+                    "metadata": {"skillId": "fetch_price "},
+                },
+            },
+        },
+    )
+    result = send.json()["result"]
+    assert result["status"]["state"] == "input-required"
+    assert not result.get("artifacts")
+    assert _contains_price_usd(result) is None
+
+
+@pytest.mark.asyncio
+async def test_a2a_duplicate_payment_on_completed_task_preserves_artifacts(client, mock_coingecko_api, monkeypatch):
+    """Replaying payment on an already-completed task must not clear artifacts."""
+    from app.a2a import META_PAYLOAD, META_STATUS, TASKS, clear_task_store, build_task, _agent_message
+
+    clear_task_store()
+    # Seed a completed paid task as if settle already succeeded.
+    msg = _agent_message("done", {META_STATUS: "payment-completed"})
+    task = build_task(
+        "fetch_price",
+        state="completed",
+        message=msg,
+        payload={"success": True, "price_usd": MOCK_BTC_USD, "data": {"price_usd": MOCK_BTC_USD}},
+    )
+    TASKS[task["id"]] = {
+        **task,
+        "skillId": "fetch_price",
+        "skill_input": {"symbol": "btc"},
+        "payment_required_header": "seed",
+        "receipts": [],
+    }
+    replay = await client.post(
+        "/a2a",
+        json={
+            "jsonrpc": "2.0",
+            "id": "replay-1",
+            "method": "message/send",
+            "params": {
+                "message": {
+                    "role": "user",
+                    "taskId": task["id"],
+                    "parts": [{"kind": "data", "data": {"skillId": "fetch_price"}}],
+                    "metadata": {
+                        META_STATUS: "payment-submitted",
+                        META_PAYLOAD: {"x402Version": 2, "payload": {}},
+                    },
+                },
+            },
+        },
+    )
+    result = replay.json()["result"]
+    assert result["status"]["state"] == "completed"
+    assert _contains_price_usd(result) == MOCK_BTC_USD
+    assert result.get("artifacts")

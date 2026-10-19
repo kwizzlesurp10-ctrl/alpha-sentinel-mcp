@@ -440,9 +440,16 @@ async def send_message(params: dict[str, Any]) -> dict[str, Any]:
     if pay_status == "payment-submitted" or payload_obj is not None:
         if not task_id or task_id not in TASKS:
             raise ValueError("task not found for payment submission")
+        existing = TASKS[task_id]
+        existing_state = (existing.get("status") or {}).get("state")
+        # Idempotent: a completed (or canceled/failed) task must not be
+        # rewound to input-required by a duplicate payment submission.
+        if existing_state in ("completed", "canceled", "failed"):
+            return get_task(task_id) or existing
         return await _continue_paid_task(task_id, payload_obj)
 
     skill, arguments = _extract_skill_and_params(params)
+    skill = skill.strip()
 
     if skill not in PAID_TOOLS:
         # Unknown or free skills: execute without payment (same as before for free).
