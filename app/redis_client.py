@@ -73,4 +73,14 @@ async def ping() -> dict[str, Any]:
             "result": "PONG" if ok else result,
         }
     except Exception as exc:
-        return {"enabled": True, "ok": False, "error": str(exc)[:160]}
+        from urllib.parse import urlparse
+
+        host = urlparse(_base()).hostname
+        return {
+            "enabled": True,
+            "ok": False,
+            "provider": "upstash",
+            "host": host,
+            "error_type": type(exc).__name__,
+            "error": str(exc)[:160],
+        }
