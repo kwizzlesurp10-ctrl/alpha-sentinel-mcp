@@ -19,6 +19,7 @@ from app.agent_surface import (
 )
 from app.commerce import CommerceLayer
 from app.config import settings
+from app.payto_guard import assert_pay_to_allowed
 from app.intelligence.price_feed import fetch_price_endpoint
 from app.intelligence.reports import generate_market_report_endpoint
 from app.intelligence.risk import calculate_risk_score_endpoint
@@ -41,6 +42,9 @@ from app.x402_services import X402Services
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Refuse retired seller wallets before serving any route.
+assert_pay_to_allowed(settings.x402_pay_to_address)
 
 app = FastAPI(
     title="Alpha Sentinel MCP Server",

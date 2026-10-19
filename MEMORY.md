@@ -10,7 +10,7 @@
 ## 📌 Quick Reference
 
 ### 🔐 Wallet Addresses (⚠️ NEVER commit secrets!)
-- **Seller Address (receive payments):** `0xAB745e5F...` *(Set via x402-pay-to-env)*
+- **Seller Address (receive payments):** `0x0d25A44f74868eCE53B305C97139CF4B62963410` *(canonical Base USDC payTo; never use retired wallets)*
 - **Buyer Address (local testing):** `0xc22c17Fca624dB679B2471f2Bb099E1E29a46209` *(~/secrets/ only)*
 
 ### 🌐 Live Deployment URLs

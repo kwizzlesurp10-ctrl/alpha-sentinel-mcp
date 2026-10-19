@@ -767,33 +767,17 @@ def build_seller_requirements(params: BuildSellerRequirementsInput) -> dict[str,
             server.initialize()
             requirements.extend(server.build_payment_requirements(config))
         except Exception as exc:
-            logger.warning("Facilitator initialize skipped for %s (offline): %s", net, exc)
-            from x402.schemas import PaymentRequirements
-            price_str = str(params.price or "$0.01").lstrip("$")
-            try:
-                atomic = float(price_str) * 1_000_000
-            except ValueError:
-                atomic = 10000.0
-            atomic_str = str(int(round(atomic)))
-            
-            if "solana" in net.lower():
-                asset = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-            elif "42161" in net:
-                asset = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
-            else:
-                asset = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-
-            requirements.append(
-                PaymentRequirements(
-                    scheme=params.scheme,
-                    network=net,
-                    pay_to=pay_to,
-                    amount=atomic_str,
-                    asset=asset,
-                    max_timeout_seconds=300,
-                    extra={},
-                )
+            # Fail closed: never emit a challenge with empty `extra` or a
+            # hand-rolled amount. Buyers cannot sign that, and it would still
+            # look like a valid 402 to a crawler.
+            logger.error(
+                "Facilitator initialize failed for %s — refusing offline fallback: %s",
+                net,
+                exc,
             )
+            raise RuntimeError(
+                f"x402 facilitator unavailable for {net}; cannot build payment requirements"
+            ) from exc
 
     # Bazaar discoverability: with a resource_url the challenge carries
     # ResourceInfo, and (unless opted out) the bazaar discovery extension —

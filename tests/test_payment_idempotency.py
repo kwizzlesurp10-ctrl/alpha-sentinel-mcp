@@ -86,7 +86,9 @@ async def test_fail_closed_without_kv(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_http_paid_fail_closed_503_without_kv(monkeypatch):
-    from app.tool_payment_gate import build_tool_challenge
+    """With a payment signature present, missing KV must 503 (not settle)."""
+    import base64
+    import json
 
     monkeypatch.setattr(
         "app.payment_idempotency.must_persist_idempotency", lambda: True
@@ -97,11 +99,44 @@ async def test_http_paid_fail_closed_503_without_kv(monkeypatch):
     monkeypatch.setattr(settings, "cdp_api_key_id", "test-cdp-id")
     monkeypatch.setattr(settings, "cdp_api_key_secret", "test-cdp-secret")
 
+    # Don't rely on the (removed) offline facilitator fallback — seed a
+    # server-authored challenge the gate can reuse.
+    header = base64.b64encode(
+        json.dumps(
+            {
+                "x402Version": 2,
+                "error": "Payment required",
+                "accepts": [
+                    {
+                        "scheme": "exact",
+                        "network": "eip155:8453",
+                        "amount": "20000",
+                        "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                        "payTo": settings.x402_pay_to_address,
+                        "maxTimeoutSeconds": 300,
+                        "extra": {"name": "USD Coin", "version": "2"},
+                    }
+                ],
+            }
+        ).encode()
+    ).decode()
+    fake = {
+        "payment_required_header": header,
+        "payment_required": {"x402Version": 2, "error": "Payment required"},
+        "requirements": [],
+    }
+
+    async def _fake_build(tool_name, resource_url):
+        return fake
+
+    monkeypatch.setattr(
+        "app.tool_payment_gate.build_tool_challenge", _fake_build
+    )
+    from app.commerce_payment import store_tool_challenge
+
+    store_tool_challenge("analyze_volatility", "http://test/tools/analyze_volatility", fake)
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await build_tool_challenge(
-            "analyze_volatility",
-            "http://test/tools/analyze_volatility",
-        )
         response = await client.post(
             "/tools/analyze_volatility",
             json={"symbol": "btc"},

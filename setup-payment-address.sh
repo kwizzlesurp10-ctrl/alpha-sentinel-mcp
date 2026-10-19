@@ -5,7 +5,7 @@ set -euo pipefail
 # Alpha Sentinel MCP - Payment Address Setup Script
 # ==============================================================================
 
-DEFAULT_ADDRESS="0xAB745e5F576667037696e78ba7dA28E193E4423D"
+DEFAULT_ADDRESS="0x0d25A44f74868eCE53B305C97139CF4B62963410"
 ENV_FILE=".env"
 ENV_EXAMPLE=".env.example"
 
@@ -27,6 +27,14 @@ fi
 
 # Trim whitespace
 TARGET_ADDRESS=$(echo "$TARGET_ADDRESS" | tr -d '[:space:]')
+
+# Refuse retired seller wallets (never write them into .env).
+case "$(echo "$TARGET_ADDRESS" | tr '[:upper:]' '[:lower:]')" in
+  0xab745e5f576667037696e78ba7da28e193e4423d|0x05e1720bb82f86b5bc7940a99fdc702e32256357)
+    echo "ERROR: $TARGET_ADDRESS is a retired seller wallet. Use $DEFAULT_ADDRESS." >&2
+    exit 1
+    ;;
+esac
 
 # Validate EVM address format (0x + 40 hex characters)
 if [[ ! "$TARGET_ADDRESS" =~ ^0x[0-9a-fA-F]{40}$ ]]; then
