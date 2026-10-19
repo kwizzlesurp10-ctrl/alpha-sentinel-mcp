@@ -190,7 +190,7 @@ async def normalize_vercel_api_path(request: Request, call_next):
                 return gate
 
     response = await call_next(request)
-    from fastapi.responses import JSONResponse, Response
+    from fastapi.responses import Response
 
     if getattr(request.state, "x402_pending", None) is not None:
         # BaseHTTPMiddleware wraps the downstream body as a StreamingResponse,

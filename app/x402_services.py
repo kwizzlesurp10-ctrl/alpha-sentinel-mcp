@@ -1261,7 +1261,6 @@ async def verify_from_headers(
     payment_signature: str, payment_required: str
 ) -> dict[str, Any]:
     """Verify only — used when settlement is deferred until the handler succeeds."""
-    from app.models import VerifyPaymentInput
 
     try:
         payload, requirements = _decode_payment_inputs(payment_signature, payment_required)
