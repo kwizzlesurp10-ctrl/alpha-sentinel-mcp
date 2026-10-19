@@ -19,7 +19,6 @@ from app.agent_surface import (
 )
 from app.commerce import CommerceLayer
 from app.config import settings
-from app.payto_guard import assert_pay_to_allowed
 from app.intelligence.price_feed import fetch_price_endpoint
 from app.intelligence.reports import generate_market_report_endpoint
 from app.intelligence.risk import calculate_risk_score_endpoint
@@ -30,6 +29,7 @@ from app.payments import (
     paid_tool_for_request_path,
     resource_url_from_path,
 )
+from app.payto_guard import assert_pay_to_allowed
 from app.rate_limit import allow_free_request
 from app.sample_cache import get as sample_cache_get
 from app.sample_cache import set as sample_cache_set
