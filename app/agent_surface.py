@@ -149,6 +149,18 @@ def agent_card() -> dict[str, Any]:
             "streaming": False,
             "pushNotifications": False,
             "extendedAgentCard": False,
+            "extensions": [
+                {
+                    "uri": "https://github.com/google-agentic-commerce/a2a-x402/blob/main/spec/v0.2",
+                    "description": "x402 micropayments for A2A skills (USDC on Base).",
+                    "required": False,
+                },
+                {
+                    "uri": "https://github.com/google-a2a/a2a-x402/v0.1",
+                    "description": "Legacy a2a-x402 extension URI.",
+                    "required": False,
+                },
+            ],
         },
         "skills": skills,
         "securitySchemes": {

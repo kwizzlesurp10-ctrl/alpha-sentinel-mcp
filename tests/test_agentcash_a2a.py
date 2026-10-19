@@ -160,7 +160,11 @@ async def test_agent_card_skills_and_agentcash_x402(client):
 
 
 @pytest.mark.asyncio
-async def test_a2a_send_message_fetch_price_and_get_task(client, mock_coingecko_api):
+async def test_a2a_send_message_fetch_price_requires_payment(client, mock_coingecko_api):
+    """Unpaid A2A paid-skill calls must not return data (x402 input-required)."""
+    from app.a2a import META_REQUIRED, META_STATUS, clear_task_store
+
+    clear_task_store()
     send = await client.post(
         "/a2a",
         json={
@@ -181,14 +185,22 @@ async def test_a2a_send_message_fetch_price_and_get_task(client, mock_coingecko_
         },
     )
     assert send.status_code == 200
-    payload = send.json()
-    result = payload.get("result") or payload
-    assert result.get("kind") in ("task", "message", None) or result.get("id")
-    task_id = result["id"]
-    price = _contains_price_usd(result)
-    assert price is not None
-    assert price == MOCK_BTC_USD
+    result = send.json()["result"]
+    assert result["status"]["state"] == "input-required"
+    assert _contains_price_usd(result) is None
+    assert not result.get("artifacts")
+    msg = result["status"]["message"]
+    meta = msg.get("metadata") or {}
+    assert meta.get(META_STATUS) == "payment-required"
+    required = meta.get(META_REQUIRED) or {}
+    accepts = required.get("accepts") or []
+    assert accepts, "x402.payment.required must include accepts[]"
+    assert accepts[0].get("scheme") == "exact"
+    assert accepts[0].get("network")
+    assert accepts[0].get("amount")
+    assert accepts[0].get("payTo")
 
+    task_id = result["id"]
     got = await client.post(
         "/a2a",
         json={
@@ -201,7 +213,16 @@ async def test_a2a_send_message_fetch_price_and_get_task(client, mock_coingecko_
     assert got.status_code == 200
     fetched = got.json()["result"]
     assert fetched["id"] == task_id
-    assert _contains_price_usd(fetched) == MOCK_BTC_USD
+    assert fetched["status"]["state"] == "input-required"
+    assert _contains_price_usd(fetched) is None
+
+
+@pytest.mark.asyncio
+async def test_agent_card_declares_a2a_x402_extension(client):
+    card = (await client.get("/.well-known/agent-card.json")).json()
+    extensions = (card.get("capabilities") or {}).get("extensions") or []
+    uris = {e.get("uri") for e in extensions if isinstance(e, dict)}
+    assert any("a2a-x402" in (u or "") for u in uris)
 
 
 @pytest.mark.asyncio
