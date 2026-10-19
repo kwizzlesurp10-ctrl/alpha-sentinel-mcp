@@ -928,12 +928,26 @@ async def _verify_and_settle_payment(params: VerifyPaymentInput) -> dict[str, An
 
     settlement = None
     settlement_error = None
+    backfilled = {"resource": False, "bazaar": False}
+    indexing = {"status": "not_reported", "source": "none"}
     if verify_result.is_valid:
+        backfilled = _apply_bazaar_backfill(payload, params.payment_required)
+        resource_url = None
+        try:
+            res = getattr(payload, "resource", None)
+            resource_url = getattr(res, "url", None) if res is not None else None
+        except Exception:
+            resource_url = None
         try:
             settle_result = await server.settle_payment(payload, requirements)
             settlement = settle_result.model_dump()
+            er = getattr(settle_result, "extension_responses", None)
+            if er and isinstance(settlement, dict):
+                settlement["extension_responses"] = er
+            indexing = _record_indexing(settlement, backfilled=backfilled, resource_url=resource_url)
         except Exception as exc:
             settlement_error = str(exc)
+            indexing = _record_indexing(None, backfilled=backfilled, resource_url=resource_url)
 
     return {
         "is_valid": verify_result.is_valid,
@@ -941,6 +955,8 @@ async def _verify_and_settle_payment(params: VerifyPaymentInput) -> dict[str, An
         "settlement": settlement,
         "settlement_error": settlement_error,
         "payment_settled": settlement is not None and settlement.get("success") is True,
+        "bazaar_indexing": indexing,
+        "discovery_backfilled": backfilled,
         "facilitator_url": _facilitator_url_for(network),
         "sdk": "x402ResourceServer.verify_payment + settle_payment",
     }
@@ -1285,16 +1301,32 @@ async def verify_from_headers(
         "_payload": payload,
         "_requirements": requirements,
         "_network": network,
+        "_payment_required": payment_required,
     }
 
 
 async def settle_verified_payment(verify_ctx: dict[str, Any]) -> dict[str, Any]:
-    """Settle a payment that already passed verify_from_headers."""
+    """Settle a payment that already passed verify_from_headers.
+
+    Backfills resource + extensions.bazaar from our challenge before settle.
+    """
     payload = verify_ctx.get("_payload")
     requirements = verify_ctx.get("_requirements")
     network = verify_ctx.get("_network")
+    payment_required = verify_ctx.get("_payment_required")
     if payload is None or requirements is None:
         return _invalid_payment_result("missing_verified_payment_context")
+    backfilled = {"resource": False, "bazaar": False}
+    indexing = {"status": "not_reported", "source": "none"}
+    resource_url = None
+    try:
+        backfilled = _apply_bazaar_backfill(payload, payment_required)
+        res = getattr(payload, "resource", None)
+        resource_url = getattr(res, "url", None) if res is not None else None
+        if resource_url is None and isinstance(payload, dict):
+            resource_url = (payload.get("resource") or {}).get("url")
+    except Exception as exc:
+        logger.warning("bazaar backfill skipped: %s", exc)
     try:
         server = _resource_server(network)
         settle_result = await server.settle_payment(payload, requirements)
@@ -1303,6 +1335,10 @@ async def settle_verified_payment(verify_ctx: dict[str, Any]) -> dict[str, Any]:
             if hasattr(settle_result, "model_dump")
             else (settle_result if isinstance(settle_result, dict) else {})
         )
+        er = getattr(settle_result, "extension_responses", None)
+        if er and isinstance(settlement, dict):
+            settlement["extension_responses"] = er
+        indexing = _record_indexing(settlement, backfilled=backfilled, resource_url=resource_url)
         ok = settlement.get("success") is True
         return {
             "is_valid": True,
@@ -1310,21 +1346,75 @@ async def settle_verified_payment(verify_ctx: dict[str, Any]) -> dict[str, Any]:
             "settlement": settlement,
             "settlement_error": None if ok else (settlement.get("errorReason") or settlement.get("error") or "settlement_failed"),
             "payment_settled": ok,
+            "bazaar_indexing": indexing,
+            "discovery_backfilled": backfilled,
             "facilitator_url": _facilitator_url_for(network),
             "sdk": "x402ResourceServer.settle_payment",
         }
     except Exception as exc:
         logger.warning("deferred settle failed: %s", exc)
+        indexing = _record_indexing(None, backfilled=backfilled, resource_url=resource_url)
         return {
             "is_valid": True,
             "invalid_reason": None,
             "settlement": None,
             "settlement_error": str(exc)[:300],
             "payment_settled": False,
+            "bazaar_indexing": indexing,
+            "discovery_backfilled": backfilled,
             "facilitator_url": _facilitator_url_for(network),
             "sdk": "x402ResourceServer.settle_payment",
         }
 
+
+def _advertised_from_required_header(payment_required: str) -> tuple[dict | None, object | None]:
+    """Extract resource + bazaar declaration from a PAYMENT-REQUIRED header."""
+    try:
+        from x402.http import decode_payment_required_header
+
+        pr = decode_payment_required_header(payment_required)
+        data = pr.model_dump(by_alias=True, exclude_none=True) if hasattr(pr, "model_dump") else dict(pr)
+    except Exception:
+        return None, None
+    resource = data.get("resource") if isinstance(data.get("resource"), dict) else None
+    exts = data.get("extensions") if isinstance(data.get("extensions"), dict) else {}
+    bazaar = exts.get("bazaar") if isinstance(exts, dict) else None
+    return resource, bazaar
+
+
+def _apply_bazaar_backfill(payload, payment_required: str | None) -> dict:
+    from app.bazaar_indexing import backfill_discovery
+
+    if not payment_required:
+        return {"resource": False, "bazaar": False}
+    resource, bazaar = _advertised_from_required_header(payment_required)
+    return backfill_discovery(payload, advertised_resource=resource, advertised_bazaar=bazaar)
+
+
+def _record_indexing(settlement: dict | None, *, backfilled: dict, resource_url: str | None = None) -> dict:
+    from app.bazaar_indexing import bazaar_indexing_status, log_bazaar_indexing
+
+    indexing = bazaar_indexing_status(settle_body=settlement)
+    # Prefer SDK-attached extension_responses if present on the settlement dict
+    er = None
+    if isinstance(settlement, dict):
+        er = settlement.get("extension_responses")
+    if er:
+        indexing = bazaar_indexing_status(extension_responses=er, settle_body=settlement)
+    entry = {
+        "service": "alpha-sentinel-mcp",
+        "resourceUrl": resource_url,
+        "transaction": (settlement or {}).get("transaction") or (settlement or {}).get("txHash"),
+        "payer": (settlement or {}).get("payer"),
+        "backfilled": backfilled,
+        "indexing": indexing,
+    }
+    log_bazaar_indexing(entry)
+    if isinstance(settlement, dict):
+        exts = settlement.get("extensions") if isinstance(settlement.get("extensions"), dict) else {}
+        if "bazaar" not in exts:
+            settlement["extensions"] = {**exts, "bazaar": indexing}
+    return indexing
 
 async def verify_and_settle_from_headers(
     payment_signature: str,

@@ -32,7 +32,8 @@ async def test_health_check(client):
     
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "healthy"
+    assert data["status"] in ("healthy", "degraded")
+    assert "components" in data and "redis" in data["components"]
     assert "components" in data
 
 

@@ -222,8 +222,17 @@ async def health_check():
 
     x402_status = await x402_services.status() if x402_services else {"enabled": False}
     redis_status = await redis_ping()
+    redis_ok = bool(redis_status.get("ok"))
+    fac = str(x402_status.get("facilitator") or "")
+    cdp_ok = bool(x402_status.get("cdp_credentials_configured"))
+    fac_broken = fac.startswith("misconfigured") or (
+        x402_status.get("enabled") and "eip155:8453" in str(x402_status.get("network") or "") and not cdp_ok
+    )
+    status = "healthy"
+    if not redis_ok or fac_broken:
+        status = "degraded"
     return {
-        "status": "healthy",
+        "status": status,
         "service": "alpha-sentinel-api",
         "version": "0.2.0",
         "timestamp": _now_iso(),
