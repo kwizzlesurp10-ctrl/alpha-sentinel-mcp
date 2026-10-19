@@ -22,7 +22,16 @@ MCP_PAYMENT_META_KEY = "x402/payment"
 MCP_PAYMENT_RESPONSE_META_KEY = "x402/payment-response"
 
 
-def mcp_resource_url() -> str:
+def mcp_resource_url(tool_name: str | None = None) -> str:
+    """Absolute resource URL for challenges.
+
+    When *tool_name* is set, use ``/tools/{tool_name}`` so each MCP tool gets its
+    own CDP Bazaar catalog entry instead of collapsing onto ``/mcp``.
+    """
+    from app.bazaar_indexing import mcp_tool_resource_url
+
+    if tool_name:
+        return mcp_tool_resource_url(settings.public_base_url, tool_name)
     return f"{settings.public_base_url.rstrip('/')}{MCP_STREAMABLE_HTTP_PATH}"
 
 
@@ -87,7 +96,7 @@ def build_tool_payment_bundle(tool_name: str) -> tuple[list[Any], Any, dict[str,
             price=price,
             scheme="exact",
             description=description,
-            resource_url=mcp_resource_url(),
+            resource_url=mcp_resource_url(tool_name),
             mime_type="application/json",
             discoverable=settings.bazaar_discoverable,
             discovery_method="POST",
@@ -108,7 +117,7 @@ def build_tool_payment_bundle(tool_name: str) -> tuple[list[Any], Any, dict[str,
 
     resource_payload = built.get("resource") or {}
     resource = ResourceInfo.model_validate(resource_payload) if resource_payload else ResourceInfo(
-        url=mcp_resource_url(),
+        url=mcp_resource_url(tool_name),
         description=description,
         mime_type="application/json",
     )
@@ -171,11 +180,17 @@ async def execute_paid_mcp_tool(
     except Exception:
         sig = json.dumps(payment_body)
 
-    accepts, _, _ = build_tool_payment_bundle(tool_name)
+    accepts, resource, extensions = build_tool_payment_bundle(tool_name)
     from x402.http import encode_payment_required_header
     from x402.schemas import PaymentRequired
 
-    pr = PaymentRequired(x402_version=2, accepts=list(accepts), error=f"Alpha Sentinel {tool_name}")
+    pr = PaymentRequired(
+        x402_version=2,
+        accepts=list(accepts),
+        error=f"Alpha Sentinel {tool_name}",
+        resource=resource,
+        extensions=extensions,
+    )
     required_header = encode_payment_required_header(pr)
 
     from app.payment_idempotency import (
