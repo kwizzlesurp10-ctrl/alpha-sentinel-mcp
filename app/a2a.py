@@ -1,23 +1,43 @@
-"""A2A JSON-RPC Send Message + Get Task over the live intelligence handlers.
+"""A2A JSON-RPC Send Message + Get Task with x402-a2a payments.
 
-Skills map 1:1 onto TOOL_SPECS. Tasks are stored in-process so Get Task by id
+Unpaid paid-skill calls return ``input-required`` + ``x402.payment.required``.
+Data is returned only after verify+settle succeeds (``payment_settled``).
+Free/unknown skills stay free. Tasks are stored in-process so Get Task by id
 returns the same work item produced by Send Message.
 """
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from app.tools_registry import EXPECTED_TOOL_NAMES, get_tool_spec
+from app.tools_registry import EXPECTED_TOOL_NAMES, PAID_TOOLS, get_tool_spec
 
 logger = logging.getLogger(__name__)
 
+META_STATUS = "x402.payment.status"
+META_REQUIRED = "x402.payment.required"
+META_PAYLOAD = "x402.payment.payload"
+META_RECEIPTS = "x402.payment.receipts"
+META_ERROR = "x402.payment.error"
+
+A2A_X402_EXTENSION_URI = (
+    "https://github.com/google-agentic-commerce/a2a-x402/blob/main/spec/v0.2"
+)
+A2A_X402_LEGACY_EXTENSION_URI = "https://github.com/google-a2a/a2a-x402/v0.1"
+A2A_X402_EXTENSION_URIS = (A2A_X402_EXTENSION_URI, A2A_X402_LEGACY_EXTENSION_URI)
+
 # In-memory task store (A2A streaming / eight-state machine is out of scope).
 TASKS: dict[str, dict[str, Any]] = {}
+
+
+def clear_task_store() -> None:
+    """Test hook: drop in-memory A2A tasks."""
+    TASKS.clear()
 
 
 def _now() -> str:
@@ -135,51 +155,66 @@ async def invoke_skill(skill: str, arguments: dict[str, Any]) -> dict[str, Any]:
     return {"success": False, "error": f"Unhandled skill: {name}", "skill": name}
 
 
-def build_task(skill: str, payload: dict[str, Any], message_id: str | None = None) -> dict[str, Any]:
-    task_id = str(uuid.uuid4())
-    artifact_id = str(uuid.uuid4())
+def _agent_message(text: str, metadata: dict[str, Any], message_id: str | None = None) -> dict[str, Any]:
+    return {
+        "role": "agent",
+        "kind": "message",
+        "messageId": message_id or str(uuid.uuid4()),
+        "parts": [{"kind": "text", "text": text}],
+        "metadata": metadata,
+    }
+
+
+def build_task(
+    skill: str,
+    *,
+    state: str,
+    message: dict[str, Any],
+    payload: dict[str, Any] | None = None,
+    message_id: str | None = None,
+    task_id: str | None = None,
+) -> dict[str, Any]:
+    tid = task_id or str(uuid.uuid4())
     context_id = str(uuid.uuid4())
-    task = {
-        "id": task_id,
-        "contextId": context_id,
-        "kind": "task",
-        "status": {"state": "completed", "timestamp": _now()},
-        "metadata": {"skill": skill, "skillId": skill},
-        "artifacts": [
+    artifacts: list[dict[str, Any]] = []
+    if payload is not None and state == "completed":
+        artifacts.append(
             {
-                "artifactId": artifact_id,
+                "artifactId": str(uuid.uuid4()),
                 "name": skill,
                 "parts": [
                     {"kind": "data", "data": payload},
                     {"kind": "text", "text": json.dumps(payload)},
                 ],
             }
-        ],
-        "history": [
-            {
-                "role": "agent",
-                "kind": "message",
-                "messageId": message_id or str(uuid.uuid4()),
-                "parts": [{"kind": "data", "data": payload}],
-            }
-        ],
+        )
+    task = {
+        "id": tid,
+        "contextId": context_id,
+        "kind": "task",
+        "status": {"state": state, "timestamp": _now(), "message": message},
+        "metadata": {"skill": skill, "skillId": skill},
+        "artifacts": artifacts,
+        "history": [message],
     }
-    TASKS[task_id] = task
     return task
 
 
 def get_task(task_id: str) -> dict[str, Any] | None:
-    return TASKS.get(task_id)
-
-
-async def send_message(params: dict[str, Any]) -> dict[str, Any]:
-    skill, arguments = _extract_skill_and_params(params)
-    payload = await invoke_skill(skill, arguments)
-    message = params.get("message") if isinstance(params, dict) else None
-    message_id = None
-    if isinstance(message, dict):
-        message_id = message.get("messageId")
-    return build_task(skill, payload, message_id=message_id)
+    stored = TASKS.get(task_id)
+    if stored is None:
+        return None
+    # Strip internal keys before returning to the client.
+    return {
+        k: v
+        for k, v in stored.items()
+        if k
+        not in {
+            "payment_required_header",
+            "skill_input",
+            "receipts_internal",
+        }
+    }
 
 
 def jsonrpc_result(req_id: Any, result: Any) -> dict[str, Any]:
@@ -188,6 +223,253 @@ def jsonrpc_result(req_id: Any, result: Any) -> dict[str, Any]:
 
 def jsonrpc_error(req_id: Any, code: int, message: str) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": req_id, "error": {"code": code, "message": message}}
+
+
+def _payment_required_body(header: str) -> dict[str, Any]:
+    from x402.http import decode_payment_required_header
+
+    pr = decode_payment_required_header(header)
+    if hasattr(pr, "model_dump"):
+        return pr.model_dump(by_alias=True, exclude_none=True)
+    return dict(pr)
+
+
+def _encode_payload_as_signature(payload: Any) -> str:
+    from x402.http import encode_payment_signature_header
+    from x402.schemas import PaymentPayload
+
+    if isinstance(payload, str):
+        return payload
+    if isinstance(payload, dict):
+        try:
+            pp = PaymentPayload.model_validate(payload)
+            return encode_payment_signature_header(pp)
+        except Exception:
+            return base64.b64encode(json.dumps(payload).encode()).decode()
+    raise ValueError("payment payload must be a string or object")
+
+
+def _settlement_receipt(settlement: dict[str, Any], *, network: str) -> dict[str, Any]:
+    return {
+        "success": bool(settlement.get("success")),
+        "transaction": settlement.get("transaction") or settlement.get("txHash"),
+        "network": settlement.get("network") or network,
+        "payer": settlement.get("payer"),
+        "errorReason": settlement.get("errorReason") or settlement.get("error"),
+    }
+
+
+async def _build_challenge_for_skill(skill: str) -> dict[str, Any]:
+    from app.payments import public_base_url
+    from app.tool_payment_gate import build_tool_challenge
+
+    resource_url = f"{public_base_url()}/tools/{skill}"
+    return await build_tool_challenge(skill, resource_url)
+
+
+async def _challenge_task(
+    skill: str,
+    skill_input: dict[str, Any],
+    message_id: str | None,
+) -> dict[str, Any]:
+    from app.config import settings
+
+    if not (settings.x402_pay_to_address or "").strip():
+        raise RuntimeError("seller not configured")
+
+    built = await _build_challenge_for_skill(skill)
+    header = built["payment_required_header"]
+    required_body = built.get("payment_required") or _payment_required_body(header)
+    pay_meta = {
+        META_STATUS: "payment-required",
+        META_REQUIRED: required_body,
+    }
+    msg = _agent_message(
+        f"Payment is required to run {skill}.",
+        pay_meta,
+        message_id=message_id,
+    )
+    task = build_task(skill, state="input-required", message=msg, message_id=message_id)
+    TASKS[task["id"]] = {
+        **task,
+        "skillId": skill,
+        "skill_input": skill_input,
+        "payment_required_header": header,
+        "receipts": [],
+    }
+    return task
+
+
+async def _continue_paid_task(
+    task_id: str,
+    payload_obj: Any,
+) -> dict[str, Any]:
+    from app import x402_services
+    from app.payment_idempotency import (
+        IdempotencyStoreRequired,
+        verify_settle_with_idempotency,
+    )
+
+    stored = TASKS[task_id]
+    skill = stored.get("skillId") or stored.get("metadata", {}).get("skillId") or "fetch_price"
+    header = stored["payment_required_header"]
+    network = x402_services.resolve_revenue_network()
+
+    try:
+        signature = _encode_payload_as_signature(payload_obj)
+    except Exception as exc:
+        receipt = _settlement_receipt(
+            {"success": False, "errorReason": str(exc)},
+            network=network,
+        )
+        receipts = list(stored.get("receipts") or []) + [receipt]
+        msg = _agent_message(
+            "Payment payload could not be parsed.",
+            {
+                META_STATUS: "payment-failed",
+                META_ERROR: "INVALID_SIGNATURE",
+                META_RECEIPTS: receipts,
+            },
+        )
+        task = build_task(skill, state="failed", message=msg, task_id=task_id)
+        stored.update(task)
+        stored["receipts"] = receipts
+        return get_task(task_id) or task
+
+    try:
+        result = await verify_settle_with_idempotency("a2a", skill, signature, header)
+    except IdempotencyStoreRequired:
+        msg = _agent_message(
+            "Payment idempotency store unavailable.",
+            {META_STATUS: "payment-failed", META_ERROR: "STORE_UNAVAILABLE"},
+        )
+        task = build_task(skill, state="failed", message=msg, task_id=task_id)
+        stored.update(task)
+        return get_task(task_id) or task
+
+    settlement = result.get("settlement") or {}
+    receipt = _settlement_receipt(settlement, network=network)
+    if not result.get("is_valid") or not result.get("payment_settled"):
+        receipt["success"] = False
+        receipt["errorReason"] = (
+            result.get("invalid_reason")
+            or result.get("reason")
+            or result.get("settlement_error")
+            or "payment_failed"
+        )
+    receipts = list(stored.get("receipts") or []) + [receipt]
+
+    if (
+        result.get("idempotency_blocked")
+        or not result.get("is_valid")
+        or not result.get("payment_settled")
+    ):
+        required_body = _payment_required_body(header)
+        msg = _agent_message(
+            "Payment verification or settlement failed.",
+            {
+                META_STATUS: "payment-failed",
+                META_ERROR: "INVALID_SIGNATURE",
+                META_REQUIRED: required_body,
+                META_RECEIPTS: receipts,
+            },
+        )
+        # Stay input-required so the client can retry with a fresh payment.
+        task = build_task(skill, state="input-required", message=msg, task_id=task_id)
+        stored.update(task)
+        stored["receipts"] = receipts
+        return get_task(task_id) or task
+
+    skill_input = stored.get("skill_input") or {}
+    try:
+        deliverable = await invoke_skill(skill, skill_input)
+    except Exception as exc:
+        logger.warning("a2a skill execution failed after settle: %s", exc)
+        msg = _agent_message(
+            "Payment settled but skill execution failed.",
+            {META_STATUS: "payment-completed", META_RECEIPTS: receipts},
+        )
+        task = build_task(skill, state="failed", message=msg, task_id=task_id)
+        stored.update(task)
+        stored["receipts"] = receipts
+        return get_task(task_id) or task
+
+    msg = _agent_message(
+        "Payment completed. Skill result attached as artifact.",
+        {META_STATUS: "payment-completed", META_RECEIPTS: receipts},
+    )
+    task = build_task(
+        skill,
+        state="completed",
+        message=msg,
+        payload=deliverable,
+        task_id=task_id,
+    )
+    stored.update(task)
+    stored["receipts"] = receipts
+    return get_task(task_id) or task
+
+
+async def send_message(params: dict[str, Any]) -> dict[str, Any]:
+    message = params.get("message") if isinstance(params, dict) else None
+    meta: dict[str, Any] = {}
+    message_id = None
+    if isinstance(message, dict):
+        meta = message.get("metadata") or {}
+        if not isinstance(meta, dict):
+            meta = {}
+        message_id = message.get("messageId")
+
+    pay_status = meta.get(META_STATUS)
+    task_id = None
+    if isinstance(message, dict):
+        task_id = message.get("taskId") or message.get("task_id")
+    payload_obj = meta.get(META_PAYLOAD)
+
+    if pay_status == "payment-rejected":
+        tid = task_id or str(uuid.uuid4())
+        msg = _agent_message(
+            "Payment requirements rejected by client.",
+            {META_STATUS: "payment-rejected"},
+            message_id=message_id,
+        )
+        task = build_task("unknown", state="canceled", message=msg, task_id=tid)
+        TASKS[tid] = task
+        return task
+
+    if pay_status == "payment-submitted" or payload_obj is not None:
+        if not task_id or task_id not in TASKS:
+            raise ValueError("task not found for payment submission")
+        existing = TASKS[task_id]
+        existing_state = (existing.get("status") or {}).get("state")
+        # Idempotent: a completed (or canceled/failed) task must not be
+        # rewound to input-required by a duplicate payment submission.
+        if existing_state in ("completed", "canceled", "failed"):
+            return get_task(task_id) or existing
+        return await _continue_paid_task(task_id, payload_obj)
+
+    skill, arguments = _extract_skill_and_params(params)
+    skill = skill.strip()
+
+    if skill not in PAID_TOOLS:
+        # Unknown or free skills: execute without payment (same as before for free).
+        payload = await invoke_skill(skill, arguments)
+        if payload.get("success") is False and payload.get("error", "").startswith("Unknown"):
+            msg = _agent_message(str(payload.get("error")), {})
+            task = build_task(skill, state="failed", message=msg, message_id=message_id)
+        else:
+            msg = _agent_message("Skill completed.", {}, message_id=message_id)
+            task = build_task(
+                skill,
+                state="completed",
+                message=msg,
+                payload=payload,
+                message_id=message_id,
+            )
+        TASKS[task["id"]] = task
+        return task
+
+    return await _challenge_task(skill, arguments, message_id)
 
 
 async def handle_jsonrpc(payload: dict[str, Any]) -> dict[str, Any]:
@@ -200,8 +482,16 @@ async def handle_jsonrpc(payload: dict[str, Any]) -> dict[str, Any]:
     normalized = method.replace(".", "/").replace("_", "/").lower()
 
     if normalized in ("message/send", "tasks/send", "send/message", "sendmessage"):
-        task = await send_message(params)
-        return jsonrpc_result(req_id, task)
+        try:
+            task = await send_message(params)
+            return jsonrpc_result(req_id, task)
+        except ValueError as exc:
+            return jsonrpc_error(req_id, -32602, str(exc))
+        except RuntimeError as exc:
+            return jsonrpc_error(req_id, -32004, str(exc))
+        except Exception as exc:
+            logger.warning("a2a send_message failed: %s", exc)
+            return jsonrpc_error(req_id, -32000, f"a2a error: {exc}")
 
     if normalized in ("tasks/get", "get/task", "gettask"):
         task_id = params.get("id") or params.get("taskId") or params.get("task_id")

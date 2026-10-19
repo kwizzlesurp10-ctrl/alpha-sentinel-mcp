@@ -160,7 +160,11 @@ async def test_agent_card_skills_and_agentcash_x402(client):
 
 
 @pytest.mark.asyncio
-async def test_a2a_send_message_fetch_price_and_get_task(client, mock_coingecko_api):
+async def test_a2a_send_message_fetch_price_requires_payment(client, mock_coingecko_api):
+    """Unpaid A2A paid-skill calls must not return data (x402 input-required)."""
+    from app.a2a import META_REQUIRED, META_STATUS, clear_task_store
+
+    clear_task_store()
     send = await client.post(
         "/a2a",
         json={
@@ -181,14 +185,22 @@ async def test_a2a_send_message_fetch_price_and_get_task(client, mock_coingecko_
         },
     )
     assert send.status_code == 200
-    payload = send.json()
-    result = payload.get("result") or payload
-    assert result.get("kind") in ("task", "message", None) or result.get("id")
-    task_id = result["id"]
-    price = _contains_price_usd(result)
-    assert price is not None
-    assert price == MOCK_BTC_USD
+    result = send.json()["result"]
+    assert result["status"]["state"] == "input-required"
+    assert _contains_price_usd(result) is None
+    assert not result.get("artifacts")
+    msg = result["status"]["message"]
+    meta = msg.get("metadata") or {}
+    assert meta.get(META_STATUS) == "payment-required"
+    required = meta.get(META_REQUIRED) or {}
+    accepts = required.get("accepts") or []
+    assert accepts, "x402.payment.required must include accepts[]"
+    assert accepts[0].get("scheme") == "exact"
+    assert accepts[0].get("network")
+    assert accepts[0].get("amount")
+    assert accepts[0].get("payTo")
 
+    task_id = result["id"]
     got = await client.post(
         "/a2a",
         json={
@@ -201,7 +213,16 @@ async def test_a2a_send_message_fetch_price_and_get_task(client, mock_coingecko_
     assert got.status_code == 200
     fetched = got.json()["result"]
     assert fetched["id"] == task_id
-    assert _contains_price_usd(fetched) == MOCK_BTC_USD
+    assert fetched["status"]["state"] == "input-required"
+    assert _contains_price_usd(fetched) is None
+
+
+@pytest.mark.asyncio
+async def test_agent_card_declares_a2a_x402_extension(client):
+    card = (await client.get("/.well-known/agent-card.json")).json()
+    extensions = (card.get("capabilities") or {}).get("extensions") or []
+    uris = {e.get("uri") for e in extensions if isinstance(e, dict)}
+    assert any("a2a-x402" in (u or "") for u in uris)
 
 
 @pytest.mark.asyncio
@@ -234,3 +255,76 @@ async def test_http_fetch_price_unpaid_returns_402(client):
     body = response.json()
     assert body.get("network")
     assert "fetch_price" in str(body.get("resource") or "")
+
+
+@pytest.mark.asyncio
+async def test_a2a_whitespace_skill_still_requires_payment(client):
+    """Trailing whitespace must not bypass the paid-skill gate."""
+    from app.a2a import clear_task_store
+
+    clear_task_store()
+    send = await client.post(
+        "/a2a",
+        json={
+            "jsonrpc": "2.0",
+            "id": "ws-1",
+            "method": "message/send",
+            "params": {
+                "message": {
+                    "role": "user",
+                    "parts": [{"kind": "data", "data": {"skillId": "fetch_price ", "symbol": "btc"}}],
+                    "metadata": {"skillId": "fetch_price "},
+                },
+            },
+        },
+    )
+    result = send.json()["result"]
+    assert result["status"]["state"] == "input-required"
+    assert not result.get("artifacts")
+    assert _contains_price_usd(result) is None
+
+
+@pytest.mark.asyncio
+async def test_a2a_duplicate_payment_on_completed_task_preserves_artifacts(client, mock_coingecko_api, monkeypatch):
+    """Replaying payment on an already-completed task must not clear artifacts."""
+    from app.a2a import META_PAYLOAD, META_STATUS, TASKS, clear_task_store, build_task, _agent_message
+
+    clear_task_store()
+    # Seed a completed paid task as if settle already succeeded.
+    msg = _agent_message("done", {META_STATUS: "payment-completed"})
+    task = build_task(
+        "fetch_price",
+        state="completed",
+        message=msg,
+        payload={"success": True, "price_usd": MOCK_BTC_USD, "data": {"price_usd": MOCK_BTC_USD}},
+    )
+    TASKS[task["id"]] = {
+        **task,
+        "skillId": "fetch_price",
+        "skill_input": {"symbol": "btc"},
+        "payment_required_header": "seed",
+        "receipts": [],
+    }
+    replay = await client.post(
+        "/a2a",
+        json={
+            "jsonrpc": "2.0",
+            "id": "replay-1",
+            "method": "message/send",
+            "params": {
+                "message": {
+                    "role": "user",
+                    "taskId": task["id"],
+                    "parts": [{"kind": "data", "data": {"skillId": "fetch_price"}}],
+                    "metadata": {
+                        META_STATUS: "payment-submitted",
+                        META_PAYLOAD: {"x402Version": 2, "payload": {}},
+                    },
+                },
+            },
+        },
+    )
+    result = replay.json()["result"]
+    assert result["status"]["state"] == "completed"
+    assert _contains_price_usd(result) == MOCK_BTC_USD
+    assert result.get("artifacts")
