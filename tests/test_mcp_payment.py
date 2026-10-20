@@ -115,3 +115,14 @@ async def test_unpaid_call_still_returns_challenge():
     from app.config import settings
 
     assert a["payTo"] == settings.x402_pay_to_address and a["maxTimeoutSeconds"] == 300
+
+
+@pytest.mark.asyncio
+async def test_success_false_result_never_settles(facilitator, monkeypatch):
+    async def _soft_fail(name, args):
+        return {"success": False, "error": "Unknown symbol"}
+
+    monkeypatch.setattr("app.mcp_http._execute_tool", _soft_fail)
+    res = await _post(_call({"x402/payment": _payment()}, {"symbol": "zzz"}))
+    assert res["isError"] is True
+    assert facilitator["settle"] == 0

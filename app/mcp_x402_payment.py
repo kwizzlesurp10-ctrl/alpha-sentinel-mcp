@@ -257,7 +257,16 @@ async def execute_paid_mcp_tool(
         tool_result = await handler(arguments)
     except Exception as exc:
         tool_result = {"isError": True, "content": [{"type": "text", "text": str(exc)}]}
-    if not isinstance(tool_result, dict) or tool_result.get("isError"):
+    structured = tool_result.get("structuredContent") if isinstance(tool_result, dict) else None
+    failed = (
+        not isinstance(tool_result, dict)
+        or bool(tool_result.get("isError"))
+        or (isinstance(structured, dict) and structured.get("success") is False)
+    )
+    if failed:
+        # Validation / upstream failure: never settle. Surface it as an MCP error.
+        if isinstance(tool_result, dict):
+            tool_result["isError"] = True
         await release_payment_attempt("mcp", tool_name, begin.fingerprint)
         return tool_result if isinstance(tool_result, dict) else {
             "isError": True,
