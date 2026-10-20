@@ -65,3 +65,37 @@ def mock_coingecko_api(monkeypatch):
 
     monkeypatch.setattr("httpx.AsyncClient.get", mock_get)
     return MOCK_BTC_USD
+
+
+def make_payment_signature(tag: str, pay_to: str | None = None) -> str:
+    """A well-formed (but unsigned) x402 v2 PAYMENT-SIGNATURE; unique per tag."""
+    import base64
+    import hashlib
+    import json
+
+    to = pay_to or TEST_PAY_TO
+    nonce = "0x" + hashlib.sha256(tag.encode()).hexdigest()
+    body = {
+        "x402Version": 2,
+        "accepted": {
+            "scheme": "exact",
+            "network": "eip155:8453",
+            "amount": "5000",
+            "asset": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+            "payTo": to,
+            "maxTimeoutSeconds": 300,
+            "extra": {"name": "USD Coin", "version": "2"},
+        },
+        "payload": {
+            "signature": "0x" + "11" * 65,
+            "authorization": {
+                "from": "0x" + "22" * 20,
+                "to": to,
+                "value": "5000",
+                "validAfter": "0",
+                "validBefore": "9999999999",
+                "nonce": nonce,
+            },
+        },
+    }
+    return base64.b64encode(json.dumps(body).encode()).decode()

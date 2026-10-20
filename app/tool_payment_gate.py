@@ -249,6 +249,19 @@ async def handle_paid_tool_request(
 
     # Idempotency: claim before verify. A prior successful payment returns the
     # cached response so the buyer is not charged twice and still gets data.
+    # Reject undecodable signatures locally: no KV claim, no facilitator call.
+    try:
+        x402_services.decode_payment_signature(sig)
+    except Exception as exc:
+        return JSONResponse(
+            status_code=402,
+            content={
+                "error": "payment_invalid",
+                "invalid_reason": f"malformed_payment: {str(exc).splitlines()[0][:160]}",
+            },
+            headers={"PAYMENT-REQUIRED": auth_header},
+        )
+
     try:
         begin = await begin_payment_attempt("http", tool_name, sig)
     except IdempotencyStoreRequired:
@@ -316,6 +329,16 @@ async def handle_paid_tool_request(
     return None
 
 
+def _soft_failure(response: JSONResponse) -> str | None:
+    try:
+        body = json.loads(bytes(response.body).decode() or "null")
+    except Exception:
+        return None
+    if isinstance(body, dict) and body.get("success") is False:
+        return str(body.get("error") or "tool returned success=false")[:300]
+    return None
+
+
 async def finalize_pending_payment(request: Request, response: JSONResponse) -> JSONResponse:
     """Settle (on 2xx) or release (on error) a payment deferred by the gate."""
     pending = getattr(request.state, "x402_pending", None)
@@ -330,6 +353,21 @@ async def finalize_pending_payment(request: Request, response: JSONResponse) -> 
         await release_payment_attempt(scope, tool_name, fingerprint)
         request.state.x402_pending = None
         return response
+
+    # Intelligence handlers report upstream / validation failures as a 200
+    # body with success:false. That is not a deliverable: do not charge.
+    soft_error = _soft_failure(response)
+    if soft_error is not None:
+        await release_payment_attempt(scope, tool_name, fingerprint)
+        request.state.x402_pending = None
+        return JSONResponse(
+            status_code=502,
+            content={
+                "error": "tool_failed",
+                "detail": soft_error,
+                "payment_settled": False,
+            },
+        )
 
     settled = await x402_services.settle_verified_payment(pending["verify_ctx"])
     if not settled.get("payment_settled"):

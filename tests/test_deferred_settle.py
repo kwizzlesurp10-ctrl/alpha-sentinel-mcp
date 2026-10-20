@@ -11,6 +11,7 @@ from httpx import ASGITransport, AsyncClient
 from app.application import app
 from app.commerce_payment import store_tool_challenge
 from app.config import settings
+from tests.conftest import make_payment_signature
 
 
 def _header(pay_to: str) -> str:
@@ -81,7 +82,7 @@ async def test_bad_input_with_payment_returns_400_without_settle(
         response = await client.post(
             "/tools/fetch_price",
             json={},
-            headers={"PAYMENT-SIGNATURE": "sig-bad-input-no-settle"},
+            headers={"PAYMENT-SIGNATURE": make_payment_signature("sig-bad-input-no-settle")},
         )
     assert response.status_code == 400
     assert settles == []
@@ -118,7 +119,7 @@ async def test_success_settles_and_idempotent_retry_replays_cache(
     monkeypatch.setattr("app.tool_payment_gate.x402_services.verify_from_headers", _verify)
     monkeypatch.setattr("app.tool_payment_gate.x402_services.settle_verified_payment", _settle)
 
-    sig = "sig-success-then-replay-unique"
+    sig = make_payment_signature("sig-success-then-replay-unique")
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         first = await client.post(
             "/tools/fetch_price",
@@ -169,7 +170,59 @@ async def test_settle_failure_after_success_handler_returns_402(
         response = await client.post(
             "/tools/fetch_price",
             json={"symbol": "btc"},
-            headers={"PAYMENT-SIGNATURE": "sig-settle-fail-after-ok"},
+            headers={"PAYMENT-SIGNATURE": make_payment_signature("sig-settle-fail-after-ok")},
         )
     assert response.status_code == 402
     assert response.json().get("error") == "Payment settlement failed"
+
+
+@pytest.mark.asyncio
+async def test_success_false_body_is_not_charged(monkeypatch, seed_challenge):
+    calls = {"settle": 0}
+
+    async def _verify(sig, req):
+        return {"is_valid": True, "_payload": object(), "_requirements": object(), "_network": "eip155:8453"}
+
+    async def _settle(ctx):
+        calls["settle"] += 1
+        return {"payment_settled": True, "settlement": {"success": True, "transaction": "0x" + "ef" * 32}}
+
+    async def _soft_fail(symbol):
+        return {"success": False, "error": "CoinGecko unavailable"}
+
+    monkeypatch.setattr("app.tool_payment_gate.x402_services.verify_from_headers", _verify)
+    monkeypatch.setattr("app.tool_payment_gate.x402_services.settle_verified_payment", _settle)
+    monkeypatch.setattr("app.application.fetch_price_endpoint", _soft_fail)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        r = await client.post(
+            "/tools/fetch_price",
+            json={"symbol": "btc"},
+            headers={"PAYMENT-SIGNATURE": make_payment_signature("soft-fail")},
+        )
+    assert r.status_code == 502
+    assert r.json()["payment_settled"] is False
+    assert calls["settle"] == 0
+
+
+@pytest.mark.asyncio
+async def test_undecodable_signature_rejected_before_kv_or_facilitator(monkeypatch, seed_challenge):
+    touched = {"kv": 0, "verify": 0}
+
+    async def _begin(*a, **k):
+        touched["kv"] += 1
+        raise AssertionError("must not claim KV for garbage")
+
+    async def _verify(*a, **k):
+        touched["verify"] += 1
+        raise AssertionError("must not call facilitator for garbage")
+
+    monkeypatch.setattr("app.tool_payment_gate.begin_payment_attempt", _begin)
+    monkeypatch.setattr("app.tool_payment_gate.x402_services.verify_from_headers", _verify)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        for bad in ["not-base64!!", "aGVsbG8=", "e30=", "A" * 20000]:
+            r = await client.post(
+                "/tools/fetch_price", json={"symbol": "btc"}, headers={"PAYMENT-SIGNATURE": bad}
+            )
+            assert r.status_code == 402, bad[:20]
+            assert r.json()["invalid_reason"].startswith("malformed_payment")
+    assert touched == {"kv": 0, "verify": 0}

@@ -17,6 +17,7 @@ from app.payment_idempotency import (
     complete_payment_attempt,
     ensure_idempotency_backend,
 )
+from tests.conftest import make_payment_signature
 
 
 @pytest.fixture
@@ -140,7 +141,7 @@ async def test_http_paid_fail_closed_503_without_kv(monkeypatch):
         response = await client.post(
             "/tools/analyze_volatility",
             json={"symbol": "btc"},
-            headers={"PAYMENT-SIGNATURE": "fake-but-present-signature"},
+            headers={"PAYMENT-SIGNATURE": make_payment_signature("fake-but-present-signature")},
         )
     assert response.status_code == 503
     assert response.json().get("error") == "idempotency_store_unavailable"
