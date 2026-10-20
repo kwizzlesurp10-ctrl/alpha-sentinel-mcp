@@ -85,7 +85,7 @@ async def _persist_task(task_id: str) -> None:
 
         if _state_of(stored) not in _TERMINAL_STATES:
             current = await _load_persisted(task_id)
-            if _state_of(current) in _TERMINAL_STATES:
+            if current is not None and _state_of(current) in _TERMINAL_STATES:
                 TASKS[task_id] = current  # adopt the newer terminal state
                 return
         await get_store().set(_task_key(task_id), json.dumps(stored, default=str), TASK_TTL_SECONDS)
@@ -529,7 +529,7 @@ async def send_message(params: dict[str, Any]) -> dict[str, Any]:
         await _hydrate_task(task_id)
         existing = TASKS.get(tid)
         skill = (existing or {}).get("skillId") or "unknown"
-        if _state_of(existing) in _TERMINAL_STATES:
+        if existing is not None and _state_of(existing) in _TERMINAL_STATES:
             return get_task(tid) or existing
         task = build_task(skill, state="canceled", message=msg, task_id=tid)
         TASKS[tid] = {**(existing or {}), **task}
