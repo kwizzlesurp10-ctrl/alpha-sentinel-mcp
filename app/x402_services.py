@@ -87,8 +87,8 @@ def _facilitator_client(network: str | None = None):
         from app.cdp_auth import build_cdp_create_headers
 
         create_headers = build_cdp_create_headers(
-            settings.cdp_api_key_id,
-            settings.cdp_api_key_secret,
+            settings.cdp_api_key_id or "",
+            settings.cdp_api_key_secret or "",
             settings.cdp_facilitator_url,
         )
         # dict-form config so the SDK wraps create_headers as an AuthProvider.
@@ -194,8 +194,9 @@ def _decode_payment_inputs(
             raise ValueError("no accepts")
         
         # Match the requirement the buyer actually accepted
-        accepted_net = getattr(payload.accepted, "network", None)
-        accepted_asset = getattr(payload.accepted, "asset", None)
+        accepted = getattr(payload, "accepted", None)
+        accepted_net = getattr(accepted, "network", None)
+        accepted_asset = getattr(accepted, "asset", None)
         matched = None
         for req in accepts:
             if getattr(req, "network", None) == accepted_net and getattr(req, "asset", None) == accepted_asset:
@@ -420,7 +421,7 @@ def _build_x402_client(
     from app.keyprovider import get_key_provider
 
     evm_key = get_key_provider().get_private_key()
-    svm_key = settings.svm_private_key
+    svm_key = getattr(settings, "svm_private_key", None)
     if not evm_key and not svm_key:
         raise ValueError(
             "EVM_PRIVATE_KEY (or SVM_PRIVATE_KEY) is required for pay_and_fetch. "
@@ -484,12 +485,14 @@ def asset_decimals(network: str | None, asset: str | None) -> int:
     network = str(network)
     try:
         if network.startswith("eip155:"):
-            from x402.mechanisms.evm.utils import get_asset_info
-        elif network.startswith("solana:"):
-            from x402.mechanisms.svm.utils import get_asset_info
-        else:
-            return DEFAULT_ASSET_DECIMALS
-        return int(get_asset_info(network, str(asset))["decimals"])
+            from x402.mechanisms.evm.utils import get_asset_info as evm_asset_info
+
+            return int(evm_asset_info(network, str(asset))["decimals"])
+        if network.startswith("solana:"):
+            from x402.mechanisms.svm.utils import get_asset_info as svm_asset_info
+
+            return int(svm_asset_info(network, str(asset))["decimals"])
+        return DEFAULT_ASSET_DECIMALS
     except Exception:
         return DEFAULT_ASSET_DECIMALS
 
@@ -791,7 +794,6 @@ def build_seller_requirements(params: BuildSellerRequirementsInput) -> dict[str,
             network=net,
             pay_to=pay_to,
             price=params.price,
-            description=description,
         )
         facilitator = _facilitator_client(net)
         server = x402ResourceServer(facilitator)
@@ -1411,7 +1413,8 @@ def _record_indexing(settlement: dict | None, *, backfilled: dict, resource_url:
     }
     log_bazaar_indexing(entry)
     if isinstance(settlement, dict):
-        exts = settlement.get("extensions") if isinstance(settlement.get("extensions"), dict) else {}
+        raw_exts = settlement.get("extensions")
+        exts: dict[str, Any] = raw_exts if isinstance(raw_exts, dict) else {}
         if "bazaar" not in exts:
             settlement["extensions"] = {**exts, "bazaar": indexing}
     return indexing

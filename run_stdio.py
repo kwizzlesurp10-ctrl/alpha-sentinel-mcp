@@ -10,8 +10,9 @@ Usage:
 The server will read from stdin and write to stdout.
 """
 
-import sys
 import logging
+import sys
+
 from app.mcp_server import mcp_app
 
 # Setup logging

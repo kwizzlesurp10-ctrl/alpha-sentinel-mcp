@@ -497,9 +497,10 @@ async def handle_jsonrpc(payload: dict[str, Any]) -> dict[str, Any]:
         task_id = params.get("id") or params.get("taskId") or params.get("task_id")
         if not task_id:
             return jsonrpc_error(req_id, -32602, "tasks/get requires id")
-        task = get_task(str(task_id))
-        if task is None:
+        found = get_task(str(task_id))
+        if found is None:
             return jsonrpc_error(req_id, -32001, f"Task not found: {task_id}")
+        task = found
         return jsonrpc_result(req_id, task)
 
     return jsonrpc_error(req_id, -32601, f"Method not found: {method}")

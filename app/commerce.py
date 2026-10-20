@@ -2,7 +2,7 @@
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ class CommerceLayer:
     
     def _initialize_agent(self, agent_id: str):
         """Create new free tier quota for agent."""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         reset_at = now + timedelta(days=1)
         
         self.quotas[agent_id] = QuotaState(

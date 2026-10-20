@@ -287,7 +287,14 @@ async def test_a2a_whitespace_skill_still_requires_payment(client):
 @pytest.mark.asyncio
 async def test_a2a_duplicate_payment_on_completed_task_preserves_artifacts(client, mock_coingecko_api, monkeypatch):
     """Replaying payment on an already-completed task must not clear artifacts."""
-    from app.a2a import META_PAYLOAD, META_STATUS, TASKS, clear_task_store, build_task, _agent_message
+    from app.a2a import (
+        META_PAYLOAD,
+        META_STATUS,
+        TASKS,
+        _agent_message,
+        build_task,
+        clear_task_store,
+    )
 
     clear_task_store()
     # Seed a completed paid task as if settle already succeeded.

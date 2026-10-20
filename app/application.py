@@ -381,7 +381,8 @@ async def _run_tool_sample(tool_name: str) -> dict:
     return payload
 
 
-@api.api_route("/tools/{tool_name}/sample", methods=["GET", "POST"])
+@api.get("/tools/{tool_name}/sample")
+@api.post("/tools/{tool_name}/sample")
 async def tool_sample(tool_name: str):
     alias = {
         "calculate_risk": "calculate_risk_score",
@@ -441,7 +442,8 @@ async def mcp_http_info():
     }
 
 
-@api.api_route("/tools/fetch_price", methods=["GET", "POST"])
+@api.get("/tools/fetch_price")
+@api.post("/tools/fetch_price")
 async def http_fetch_price(request: Request):
     """Paid price feed (x402). Unpaid requests are rejected by middleware."""
     params = await _request_params(request)
@@ -457,7 +459,8 @@ async def http_fetch_price(request: Request):
         raise HTTPException(status_code=502, detail=str(e)) from e
 
 
-@api.api_route("/tools/analyze_volatility", methods=["GET", "POST"])
+@api.get("/tools/analyze_volatility")
+@api.post("/tools/analyze_volatility")
 async def http_analyze_volatility(request: Request):
     params = await _request_params(request)
     symbol = params.get("symbol")
@@ -472,7 +475,8 @@ async def http_analyze_volatility(request: Request):
         raise HTTPException(status_code=502, detail=str(e)) from e
 
 
-@api.api_route("/tools/aggregate_sentiment", methods=["GET", "POST"])
+@api.get("/tools/aggregate_sentiment")
+@api.post("/tools/aggregate_sentiment")
 async def http_aggregate_sentiment(request: Request):
     params = await _request_params(request)
     symbols = _as_list(params.get("symbols"), ["btc", "eth"])
@@ -498,12 +502,14 @@ async def _http_calculate_risk(request: Request):
         raise HTTPException(status_code=502, detail=str(e)) from e
 
 
-@api.api_route("/tools/calculate_risk", methods=["GET", "POST"])
+@api.get("/tools/calculate_risk")
+@api.post("/tools/calculate_risk")
 async def http_calculate_risk(request: Request):
     return await _http_calculate_risk(request)
 
 
-@api.api_route("/tools/calculate_risk_score", methods=["GET", "POST"])
+@api.get("/tools/calculate_risk_score")
+@api.post("/tools/calculate_risk_score")
 async def http_calculate_risk_score(request: Request):
     return await _http_calculate_risk(request)
 
@@ -520,12 +526,14 @@ async def _http_generate_report(request: Request):
         raise HTTPException(status_code=502, detail=str(e)) from e
 
 
-@api.api_route("/tools/generate_report", methods=["GET", "POST"])
+@api.get("/tools/generate_report")
+@api.post("/tools/generate_report")
 async def http_generate_report(request: Request):
     return await _http_generate_report(request)
 
 
-@api.api_route("/tools/generate_market_report", methods=["GET", "POST"])
+@api.get("/tools/generate_market_report")
+@api.post("/tools/generate_market_report")
 async def http_generate_market_report(request: Request):
     return await _http_generate_report(request)
 
@@ -700,7 +708,7 @@ def custom_openapi():
     return decorate_openapi(schema)
 
 
-app.openapi = custom_openapi
+app.openapi = custom_openapi  # type: ignore[method-assign]
 
 
 if __name__ == "__main__":

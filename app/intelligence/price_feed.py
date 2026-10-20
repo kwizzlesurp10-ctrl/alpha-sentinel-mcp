@@ -1,7 +1,7 @@
 """Price feed module - CoinGecko API integration."""
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 import httpx
 
@@ -78,7 +78,7 @@ async def fetch_price_from_coingecko(symbol: str) -> dict:
             "price_usd": price_data["usd"],
             "change_24h": price_data.get("usd_24h_change", 0.0),
             "volume_24h": price_data.get("usd_24h_vol", 0.0),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
 
@@ -99,7 +99,7 @@ async def get_price_history(
     """
     coin_id = resolve_coingecko_id(symbol)
     url = f"{settings.coingecko_base_url}/coins/{coin_id}/market_chart"
-    params = {
+    params: dict[str, str | int] = {
         "vs_currency": currency,
         "days": min(days, 30),  # CoinGecko free tier limit
     }
@@ -148,7 +148,7 @@ async def fetch_price_from_coinbase(symbol: str) -> dict:
             "change_24h": 0.0,
             "volume_24h": 0.0,
             "source": "coinbase_spot_fallback",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
 
 

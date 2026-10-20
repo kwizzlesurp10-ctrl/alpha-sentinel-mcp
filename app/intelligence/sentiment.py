@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 import httpx
 
@@ -136,7 +136,7 @@ async def aggregate_sentiment_endpoint(
             "sources_requested": sources,
             "window_minutes": window_minutes,
             "cost_usd": settings.sentiment_analysis_price_usd,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
     except ValueError as e:
         logger.error("Invalid parameters: %s", e)

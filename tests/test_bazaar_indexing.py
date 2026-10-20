@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import json
+from typing import ClassVar
 
 import pytest
 
@@ -13,6 +14,7 @@ from app.bazaar_indexing import (
     mcp_tool_resource_url,
 )
 from app.mcp_x402_payment import mcp_resource_url
+
 CANONICAL_PAY_TO = "0x0d25A44f74868eCE53B305C97139CF4B62963410"
 
 
@@ -103,7 +105,7 @@ async def test_verify_and_settle_applies_backfill(monkeypatch):
                 "extension_responses": {"bazaar": {"status": "processing"}},
             }
 
-        extension_responses = {"bazaar": {"status": "processing"}}
+        extension_responses: ClassVar[dict] = {"bazaar": {"status": "processing"}}
 
     class FakeVerify:
         is_valid = True

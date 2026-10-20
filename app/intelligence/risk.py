@@ -1,7 +1,7 @@
 """Risk assessment module - Multi-factor risk scoring."""
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from app.config import settings
 
@@ -252,7 +252,7 @@ async def calculate_risk_score_endpoint(
             "symbols": symbols,
             "factors_analyzed": include_factors,
             "cost_usd": settings.risk_assessment_price_usd * len(symbols),
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
         
     except ValueError as e:
