@@ -47,37 +47,62 @@ def _task_key(task_id: str) -> str:
     return f"a2a:task:{task_id}"
 
 
+_TERMINAL_STATES = ("completed", "canceled", "failed")
+
+
+def _state_of(task: dict[str, Any] | None) -> str | None:
+    if not isinstance(task, dict):
+        return None
+    return (task.get("status") or {}).get("state")
+
+
+async def _load_persisted(task_id: str) -> dict[str, Any] | None:
+    from app.kv_store import get_store
+
+    raw = await get_store().get(_task_key(task_id))
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if isinstance(data, dict) and data.get("id") == task_id:
+        return data
+    return None
+
+
 async def _persist_task(task_id: str) -> None:
-    """Mirror a task to KV so a payment submission can land on another instance."""
+    """Mirror a task to KV so any instance can serve it.
+
+    KV is the source of truth. A terminal task (completed / canceled / failed)
+    is never overwritten by a non-terminal snapshot from a stale instance.
+    """
     stored = TASKS.get(task_id)
     if stored is None:
         return
     try:
         from app.kv_store import get_store
 
+        if _state_of(stored) not in _TERMINAL_STATES:
+            current = await _load_persisted(task_id)
+            if _state_of(current) in _TERMINAL_STATES:
+                TASKS[task_id] = current  # adopt the newer terminal state
+                return
         await get_store().set(_task_key(task_id), json.dumps(stored, default=str), TASK_TTL_SECONDS)
     except Exception as exc:
         logger.warning("a2a task persist failed: %s", exc)
 
 
 async def _hydrate_task(task_id: str | None) -> None:
-    """Load a task from KV into the local cache when this instance has not seen it."""
-    if not task_id or task_id in TASKS:
+    """Refresh the local cache from KV (always: another instance may have moved it)."""
+    if not task_id:
         return
     try:
-        from app.kv_store import get_store
-
-        raw = await get_store().get(_task_key(str(task_id)))
+        data = await _load_persisted(str(task_id))
     except Exception as exc:
         logger.warning("a2a task load failed: %s", exc)
         return
-    if not raw:
-        return
-    try:
-        data = json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
-        return
-    if isinstance(data, dict) and data.get("id") == task_id:
+    if data is not None:
         TASKS[str(task_id)] = data
 
 
@@ -409,7 +434,14 @@ async def _continue_paid_task(
         stored.update(task)
         return get_task(task_id) or task
     if not begin.allowed:
-        return _payment_failed(begin.reason or "payment_already_consumed", "DUPLICATE_PAYMENT")
+        # Replay of a payment already in flight / consumed: report it without
+        # rewriting the stored task (another instance may be completing it).
+        current = get_task(task_id) or dict(stored)
+        msg = _agent_message(
+            "This payment was already submitted for this task.",
+            {META_STATUS: "payment-failed", META_ERROR: "DUPLICATE_PAYMENT"},
+        )
+        return {**current, "status": {**(current.get("status") or {}), "message": msg}}
 
     # Verify → run the skill → settle only on success. A skill failure never
     # charges the buyer; data is returned only after settlement succeeds.
@@ -494,9 +526,15 @@ async def send_message(params: dict[str, Any]) -> dict[str, Any]:
             {META_STATUS: "payment-rejected"},
             message_id=message_id,
         )
-        task = build_task("unknown", state="canceled", message=msg, task_id=tid)
-        TASKS[tid] = task
-        return task
+        await _hydrate_task(task_id)
+        existing = TASKS.get(tid)
+        skill = (existing or {}).get("skillId") or "unknown"
+        if _state_of(existing) in _TERMINAL_STATES:
+            return get_task(tid) or existing
+        task = build_task(skill, state="canceled", message=msg, task_id=tid)
+        TASKS[tid] = {**(existing or {}), **task}
+        await _persist_task(tid)
+        return get_task(tid) or task
 
     if pay_status == "payment-submitted" or payload_obj is not None:
         await _hydrate_task(task_id)

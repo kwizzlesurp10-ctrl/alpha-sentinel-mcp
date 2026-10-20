@@ -112,3 +112,61 @@ async def test_skill_failure_does_not_settle(client, facilitator, monkeypatch):
     assert result["status"]["state"] == "failed"
     assert not result.get("artifacts")
     assert facilitator == {"verify": 1, "settle": 0}
+
+
+@pytest.mark.asyncio
+async def test_warm_instance_sees_completion_from_other_instance(client, facilitator, mock_coingecko_api):
+    """Instance A issues the challenge, B completes it; A must not serve stale input-required."""
+    import copy
+
+    clear_task_store()
+    task_id = await _challenge(client)
+    stale = copy.deepcopy(TASKS[task_id])  # instance A's local copy
+    TASKS.clear()
+    done = (await _send(client, _pay(task_id)))["result"]  # instance B
+    assert done["status"]["state"] == "completed"
+
+    TASKS[task_id] = stale  # back on instance A with its stale cache
+    r = await client.post(
+        "/a2a", json={"jsonrpc": "2.0", "id": 9, "method": "tasks/get", "params": {"id": task_id}}
+    )
+    assert r.json()["result"]["status"]["state"] == "completed"
+
+    # A duplicate submission on A must not rewind the completed task.
+    TASKS[task_id] = copy.deepcopy(stale)
+    again = (await _send(client, _pay(task_id)))["result"]
+    assert again["status"]["state"] == "completed" and again.get("artifacts")
+    assert facilitator["settle"] == 1
+
+
+@pytest.mark.asyncio
+async def test_payment_rejected_cancel_is_persisted(client, facilitator):
+    clear_task_store()
+    task_id = await _challenge(client)
+    TASKS.clear()
+    cancel = {"role": "user", "kind": "message", "messageId": "m3", "taskId": task_id,
+              "parts": [{"kind": "text", "text": "no"}],
+              "metadata": {META_STATUS: "payment-rejected"}}
+    assert (await _send(client, cancel))["result"]["status"]["state"] == "canceled"
+    TASKS.clear()  # another instance
+    after = (await _send(client, _pay(task_id)))["result"]
+    assert after["status"]["state"] == "canceled"
+    assert facilitator == {"verify": 0, "settle": 0}
+
+
+@pytest.mark.asyncio
+async def test_inflight_duplicate_does_not_rewrite_task(client, facilitator, monkeypatch):
+    from app.payment_idempotency import IdempotencyBeginResult
+
+    clear_task_store()
+    task_id = await _challenge(client)
+
+    async def _busy(*a, **k):
+        return IdempotencyBeginResult(allowed=False, fingerprint="fp", reason="duplicate_inflight")
+
+    monkeypatch.setattr("app.payment_idempotency.begin_payment_attempt", _busy)
+    before = dict(TASKS[task_id]["status"])
+    res = (await _send(client, _pay(task_id)))["result"]
+    assert res["status"]["message"]["metadata"]["x402.payment.error"] == "DUPLICATE_PAYMENT"
+    assert TASKS[task_id]["status"]["state"] == before["state"] == "input-required"
+    assert facilitator == {"verify": 0, "settle": 0}
