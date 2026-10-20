@@ -47,6 +47,9 @@ def _task_key(task_id: str) -> str:
     return f"a2a:task:{task_id}"
 
 
+_TERMINAL_TASK_STATES = frozenset({"completed", "canceled", "failed"})
+
+
 async def _persist_task(task_id: str) -> None:
     """Mirror a task to KV so a payment submission can land on another instance."""
     stored = TASKS.get(task_id)
@@ -55,19 +58,37 @@ async def _persist_task(task_id: str) -> None:
     try:
         from app.kv_store import get_store
 
-        await get_store().set(_task_key(task_id), json.dumps(stored, default=str), TASK_TTL_SECONDS)
+        store = get_store()
+        local_state = (stored.get("status") or {}).get("state")
+        if local_state not in _TERMINAL_TASK_STATES:
+            raw = await store.get(_task_key(task_id))
+            if raw:
+                try:
+                    existing = json.loads(raw)
+                except (json.JSONDecodeError, TypeError):
+                    existing = None
+                if isinstance(existing, dict):
+                    kv_state = (existing.get("status") or {}).get("state")
+                    if kv_state in _TERMINAL_TASK_STATES:
+                        return
+        await store.set(_task_key(task_id), json.dumps(stored, default=str), TASK_TTL_SECONDS)
     except Exception as exc:
         logger.warning("a2a task persist failed: %s", exc)
 
 
 async def _hydrate_task(task_id: str | None) -> None:
-    """Load a task from KV into the local cache when this instance has not seen it."""
-    if not task_id or task_id in TASKS:
+    """Load the latest task snapshot from KV when the local cache may be stale."""
+    if not task_id:
+        return
+    tid = str(task_id)
+    local = TASKS.get(tid)
+    local_state = (local.get("status") or {}).get("state") if isinstance(local, dict) else None
+    if local_state in _TERMINAL_TASK_STATES:
         return
     try:
         from app.kv_store import get_store
 
-        raw = await get_store().get(_task_key(str(task_id)))
+        raw = await get_store().get(_task_key(tid))
     except Exception as exc:
         logger.warning("a2a task load failed: %s", exc)
         return
@@ -77,8 +98,8 @@ async def _hydrate_task(task_id: str | None) -> None:
         data = json.loads(raw)
     except (json.JSONDecodeError, TypeError):
         return
-    if isinstance(data, dict) and data.get("id") == task_id:
-        TASKS[str(task_id)] = data
+    if isinstance(data, dict) and data.get("id") == tid:
+        TASKS[tid] = data
 
 
 def _now() -> str:
@@ -409,6 +430,10 @@ async def _continue_paid_task(
         stored.update(task)
         return get_task(task_id) or task
     if not begin.allowed:
+        await _hydrate_task(task_id)
+        replay_state = (TASKS.get(task_id, {}).get("status") or {}).get("state")
+        if replay_state in _TERMINAL_TASK_STATES:
+            return get_task(task_id) or TASKS[task_id]
         return _payment_failed(begin.reason or "payment_already_consumed", "DUPLICATE_PAYMENT")
 
     # Verify → run the skill → settle only on success. A skill failure never
@@ -450,6 +475,10 @@ async def _continue_paid_task(
         )
     if not await complete_payment_attempt("a2a", skill, begin.fingerprint, settlement):
         await release_payment_attempt("a2a", skill, begin.fingerprint)
+        await _hydrate_task(task_id)
+        replay_state = (TASKS.get(task_id, {}).get("status") or {}).get("state")
+        if replay_state in _TERMINAL_TASK_STATES:
+            return get_task(task_id) or TASKS[task_id]
         return _payment_failed("settlement_tx_replay", "DUPLICATE_PAYMENT")
 
     receipts = list(stored.get("receipts") or []) + [
@@ -506,7 +535,7 @@ async def send_message(params: dict[str, Any]) -> dict[str, Any]:
         existing_state = (existing.get("status") or {}).get("state")
         # Idempotent: a completed (or canceled/failed) task must not be
         # rewound to input-required by a duplicate payment submission.
-        if existing_state in ("completed", "canceled", "failed"):
+        if existing_state in _TERMINAL_TASK_STATES:
             return get_task(task_id) or existing
         result = await _continue_paid_task(task_id, payload_obj)
         await _persist_task(task_id)
