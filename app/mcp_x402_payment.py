@@ -7,6 +7,7 @@ import logging
 from functools import lru_cache
 from typing import Any
 
+from app import x402_services
 from app.config import settings
 from app.payments import TOOL_PRICES
 from app.tool_payment_gate import (
@@ -172,18 +173,43 @@ async def execute_paid_mcp_tool(
             "structuredContent": sc,
         }
 
-    from x402.http import encode_payment_signature_header
+    from x402.http import (
+        encode_payment_required_header,
+        encode_payment_signature_header,
+    )
+    from x402.schemas import PaymentPayload, PaymentRequired
 
+    from app.payment_idempotency import (
+        IdempotencyStoreRequired,
+        begin_payment_attempt,
+        cache_paid_response,
+        complete_payment_attempt,
+        idempotency_unavailable_response,
+        load_cached_paid_response,
+        release_payment_attempt,
+    )
 
+    def _payment_error(reason: str, error: str | None = None, **extra: Any) -> dict[str, Any]:
+        sc = payment_required_structured_content(tool_name)
+        sc["invalid_reason"] = reason
+        if error:
+            sc["error"] = error
+        sc.update({k: v for k, v in extra.items() if v is not None})
+        return {
+            "isError": True,
+            "content": [{"type": "text", "text": json.dumps(sc)}],
+            "structuredContent": sc,
+        }
+
+    # The MCP payment is a PaymentPayload object; the facilitator path expects
+    # the base64 PAYMENT-SIGNATURE encoding of it.
     try:
-        sig = encode_payment_signature_header(payment_body)
-    except Exception:
-        sig = json.dumps(payment_body)
+        payload_model = PaymentPayload.model_validate(payment_body)
+        sig = encode_payment_signature_header(payload_model)
+    except Exception as exc:
+        return _payment_error(f"malformed_payment: {str(exc).splitlines()[0][:160]}")
 
     accepts, resource, extensions = build_tool_payment_bundle(tool_name)
-    from x402.http import encode_payment_required_header
-    from x402.schemas import PaymentRequired
-
     pr = PaymentRequired(
         x402_version=2,
         accepts=list(accepts),
@@ -193,16 +219,8 @@ async def execute_paid_mcp_tool(
     )
     required_header = encode_payment_required_header(pr)
 
-    from app.payment_idempotency import (
-        IdempotencyStoreRequired,
-        idempotency_unavailable_response,
-        verify_settle_with_idempotency,
-    )
-
     try:
-        result = await verify_settle_with_idempotency(
-            "mcp", tool_name, sig, required_header
-        )
+        begin = await begin_payment_attempt("mcp", tool_name, sig)
     except IdempotencyStoreRequired:
         err = idempotency_unavailable_response()
         return {
@@ -211,30 +229,72 @@ async def execute_paid_mcp_tool(
             "structuredContent": err,
         }
 
-    if result.get("idempotency_blocked") or not result.get("is_valid") or not result.get(
-        "payment_settled"
-    ):
-        sc = payment_required_structured_content(tool_name)
-        sc["invalid_reason"] = result.get("invalid_reason") or result.get("reason")
-        sc["settlement_error"] = result.get("settlement_error")
-        if result.get("idempotency_blocked"):
-            sc["error"] = "replay_rejected"
-        return {
-            "isError": True,
-            "content": [{"type": "text", "text": json.dumps(sc)}],
-            "structuredContent": sc,
-        }
+    if not begin.allowed:
+        cached = await load_cached_paid_response("mcp", tool_name, begin.fingerprint)
+        if cached:
+            try:
+                replay = json.loads(cached["body"])
+            except (json.JSONDecodeError, TypeError):
+                replay = None
+            if isinstance(replay, dict):
+                replay["_meta"] = {**(replay.get("_meta") or {}), "x402/idempotent-replay": True}
+                return replay
+        return _payment_error(begin.reason or "payment_already_consumed", error="replay_rejected")
+
+    # Verify only; settle after the tool succeeds so a failed call never
+    # burns the buyer's authorization (same contract as the HTTP gate).
+    try:
+        verified = await x402_services.verify_from_headers(sig, required_header)
+    except Exception:
+        await release_payment_attempt("mcp", tool_name, begin.fingerprint)
+        raise
+    if not verified.get("is_valid"):
+        await release_payment_attempt("mcp", tool_name, begin.fingerprint)
+        return _payment_error(verified.get("invalid_reason") or "verification_failed")
+    verified["_payment_required"] = required_header
 
     try:
         tool_result = await handler(arguments)
     except Exception as exc:
-        tool_result = {
+        tool_result = {"isError": True, "content": [{"type": "text", "text": str(exc)}]}
+    structured = tool_result.get("structuredContent") if isinstance(tool_result, dict) else None
+    failed = (
+        not isinstance(tool_result, dict)
+        or bool(tool_result.get("isError"))
+        or (isinstance(structured, dict) and structured.get("success") is False)
+    )
+    if failed:
+        # Validation / upstream failure: never settle. Surface it as an MCP error.
+        if isinstance(tool_result, dict):
+            tool_result["isError"] = True
+        await release_payment_attempt("mcp", tool_name, begin.fingerprint)
+        return tool_result if isinstance(tool_result, dict) else {
             "isError": True,
-            "content": [{"type": "text", "text": str(exc)}],
+            "content": [{"type": "text", "text": "tool returned no result"}],
         }
 
-    settlement = result.get("settlement") or {}
-    meta = {MCP_PAYMENT_RESPONSE_META_KEY: settlement}
-    if isinstance(tool_result, dict):
-        tool_result["_meta"] = {**(tool_result.get("_meta") or {}), **meta}
+    settled = await x402_services.settle_verified_payment(verified)
+    if not settled.get("payment_settled"):
+        await release_payment_attempt("mcp", tool_name, begin.fingerprint)
+        return _payment_error(
+            settled.get("settlement_error") or settled.get("invalid_reason") or "settlement_failed",
+            error="Payment settlement failed",
+            settlement_error=settled.get("settlement_error"),
+        )
+
+    settlement = settled.get("settlement") or {}
+    if not await complete_payment_attempt("mcp", tool_name, begin.fingerprint, settlement):
+        await release_payment_attempt("mcp", tool_name, begin.fingerprint)
+        return _payment_error("settlement_tx_replay", error="replay_rejected")
+
+    tool_result["_meta"] = {
+        **(tool_result.get("_meta") or {}),
+        MCP_PAYMENT_RESPONSE_META_KEY: settlement,
+    }
+    try:
+        await cache_paid_response(
+            "mcp", tool_name, begin.fingerprint, status_code=200, body=json.dumps(tool_result)
+        )
+    except Exception as exc:
+        logger.warning("failed to cache MCP paid response: %s", exc)
     return tool_result

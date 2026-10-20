@@ -109,8 +109,12 @@ async def run_tool_sample(name: str, arguments: dict[str, Any] | None = None) ->
     }
 
 
-async def call_tool(name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:
-    arguments = arguments or {}
+async def call_tool(
+    name: str,
+    arguments: dict[str, Any] | None = None,
+    meta: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    arguments = dict(arguments or {})
     spec = get_tool_spec(name)
     if spec is None:
         return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: {name}"}]}
@@ -126,7 +130,13 @@ async def call_tool(name: str, arguments: dict[str, Any] | None = None) -> dict[
             "structuredContent": result,
         }
 
-    payment_meta = extract_mcp_payment_meta(arguments)
+    # MCP x402 transport: payment rides in params._meta["x402/payment"]. Older
+    # clients nested _meta inside arguments; accept both, never pass it on.
+    payment_meta = extract_mcp_payment_meta({"_meta": meta}) if isinstance(meta, dict) else None
+    if payment_meta is None:
+        payment_meta = extract_mcp_payment_meta(arguments)
+    arguments.pop("_meta", None)
+    arguments.pop("meta", None)
     if name in FREE_TOOLS:
         return await handler(arguments)
 
@@ -160,7 +170,12 @@ async def handle_jsonrpc(payload: dict[str, Any]) -> dict[str, Any] | None:
         args = params.get("arguments") or params.get("args") or {}
         if not name:
             return jsonrpc_error(req_id, -32602, "tools/call requires name")
-        result = await call_tool(str(name), args if isinstance(args, dict) else {})
+        meta = params.get("_meta")
+        result = await call_tool(
+            str(name),
+            args if isinstance(args, dict) else {},
+            meta if isinstance(meta, dict) else None,
+        )
         return jsonrpc_response(req_id, result)
     if method == "ping":
         return jsonrpc_response(req_id, {})

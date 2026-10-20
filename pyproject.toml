@@ -40,7 +40,6 @@ ignore = ["BLE001", "DTZ003", "ASYNC230", "S110", "RUF046"]
 [tool.mypy]
 python_version = "3.12"
 ignore_missing_imports = true
-ignore_errors = true
 
 [tool.vercel]
 entrypoint = "api.index:app"
