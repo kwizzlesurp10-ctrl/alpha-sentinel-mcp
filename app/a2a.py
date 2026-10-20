@@ -35,9 +35,75 @@ A2A_X402_EXTENSION_URIS = (A2A_X402_EXTENSION_URI, A2A_X402_LEGACY_EXTENSION_URI
 TASKS: dict[str, dict[str, Any]] = {}
 
 
+TASK_TTL_SECONDS = 3600
+
+
 def clear_task_store() -> None:
     """Test hook: drop in-memory A2A tasks."""
     TASKS.clear()
+
+
+def _task_key(task_id: str) -> str:
+    return f"a2a:task:{task_id}"
+
+
+_TERMINAL_STATES = ("completed", "canceled", "failed")
+
+
+def _state_of(task: dict[str, Any] | None) -> str | None:
+    if not isinstance(task, dict):
+        return None
+    return (task.get("status") or {}).get("state")
+
+
+async def _load_persisted(task_id: str) -> dict[str, Any] | None:
+    from app.kv_store import get_store
+
+    raw = await get_store().get(_task_key(task_id))
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    if isinstance(data, dict) and data.get("id") == task_id:
+        return data
+    return None
+
+
+async def _persist_task(task_id: str) -> None:
+    """Mirror a task to KV so any instance can serve it.
+
+    KV is the source of truth. A terminal task (completed / canceled / failed)
+    is never overwritten by a non-terminal snapshot from a stale instance.
+    """
+    stored = TASKS.get(task_id)
+    if stored is None:
+        return
+    try:
+        from app.kv_store import get_store
+
+        if _state_of(stored) not in _TERMINAL_STATES:
+            current = await _load_persisted(task_id)
+            if current is not None and _state_of(current) in _TERMINAL_STATES:
+                TASKS[task_id] = current  # adopt the newer terminal state
+                return
+        await get_store().set(_task_key(task_id), json.dumps(stored, default=str), TASK_TTL_SECONDS)
+    except Exception as exc:
+        logger.warning("a2a task persist failed: %s", exc)
+
+
+async def _hydrate_task(task_id: str | None) -> None:
+    """Refresh the local cache from KV (always: another instance may have moved it)."""
+    if not task_id:
+        return
+    try:
+        data = await _load_persisted(str(task_id))
+    except Exception as exc:
+        logger.warning("a2a task load failed: %s", exc)
+        return
+    if data is not None:
+        TASKS[str(task_id)] = data
 
 
 def _now() -> str:
@@ -305,10 +371,7 @@ async def _continue_paid_task(
     payload_obj: Any,
 ) -> dict[str, Any]:
     from app import x402_services
-    from app.payment_idempotency import (
-        IdempotencyStoreRequired,
-        verify_settle_with_idempotency,
-    )
+    from app.payment_idempotency import IdempotencyStoreRequired
 
     stored = TASKS[task_id]
     skill = stored.get("skillId") or stored.get("metadata", {}).get("skillId") or "fetch_price"
@@ -336,41 +399,21 @@ async def _continue_paid_task(
         stored["receipts"] = receipts
         return get_task(task_id) or task
 
-    try:
-        result = await verify_settle_with_idempotency("a2a", skill, signature, header)
-    except IdempotencyStoreRequired:
-        msg = _agent_message(
-            "Payment idempotency store unavailable.",
-            {META_STATUS: "payment-failed", META_ERROR: "STORE_UNAVAILABLE"},
-        )
-        task = build_task(skill, state="failed", message=msg, task_id=task_id)
-        stored.update(task)
-        return get_task(task_id) or task
+    from app.payment_idempotency import (
+        begin_payment_attempt,
+        complete_payment_attempt,
+        release_payment_attempt,
+    )
 
-    settlement = result.get("settlement") or {}
-    receipt = _settlement_receipt(settlement, network=network)
-    if not result.get("is_valid") or not result.get("payment_settled"):
-        receipt["success"] = False
-        receipt["errorReason"] = (
-            result.get("invalid_reason")
-            or result.get("reason")
-            or result.get("settlement_error")
-            or "payment_failed"
-        )
-    receipts = list(stored.get("receipts") or []) + [receipt]
-
-    if (
-        result.get("idempotency_blocked")
-        or not result.get("is_valid")
-        or not result.get("payment_settled")
-    ):
-        required_body = _payment_required_body(header)
+    def _payment_failed(reason: str, error_code: str = "INVALID_SIGNATURE") -> dict[str, Any]:
+        receipt = _settlement_receipt({"success": False, "errorReason": reason}, network=network)
+        receipts = list(stored.get("receipts") or []) + [receipt]
         msg = _agent_message(
             "Payment verification or settlement failed.",
             {
                 META_STATUS: "payment-failed",
-                META_ERROR: "INVALID_SIGNATURE",
-                META_REQUIRED: required_body,
+                META_ERROR: error_code,
+                META_REQUIRED: _payment_required_body(header),
                 META_RECEIPTS: receipts,
             },
         )
@@ -380,20 +423,70 @@ async def _continue_paid_task(
         stored["receipts"] = receipts
         return get_task(task_id) or task
 
-    skill_input = stored.get("skill_input") or {}
     try:
-        deliverable = await invoke_skill(skill, skill_input)
-    except Exception as exc:
-        logger.warning("a2a skill execution failed after settle: %s", exc)
+        begin = await begin_payment_attempt("a2a", skill, signature)
+    except IdempotencyStoreRequired:
         msg = _agent_message(
-            "Payment settled but skill execution failed.",
-            {META_STATUS: "payment-completed", META_RECEIPTS: receipts},
+            "Payment idempotency store unavailable.",
+            {META_STATUS: "payment-failed", META_ERROR: "STORE_UNAVAILABLE"},
         )
         task = build_task(skill, state="failed", message=msg, task_id=task_id)
         stored.update(task)
-        stored["receipts"] = receipts
+        return get_task(task_id) or task
+    if not begin.allowed:
+        # Replay of a payment already in flight / consumed: report it without
+        # rewriting the stored task (another instance may be completing it).
+        current = get_task(task_id) or dict(stored)
+        msg = _agent_message(
+            "This payment was already submitted for this task.",
+            {META_STATUS: "payment-failed", META_ERROR: "DUPLICATE_PAYMENT"},
+        )
+        return {**current, "status": {**(current.get("status") or {}), "message": msg}}
+
+    # Verify → run the skill → settle only on success. A skill failure never
+    # charges the buyer; data is returned only after settlement succeeds.
+    try:
+        verified = await x402_services.verify_from_headers(signature, header)
+    except Exception as exc:
+        await release_payment_attempt("a2a", skill, begin.fingerprint)
+        return _payment_failed(f"verify_failed: {exc}"[:200])
+    if not verified.get("is_valid"):
+        await release_payment_attempt("a2a", skill, begin.fingerprint)
+        return _payment_failed(verified.get("invalid_reason") or "verification_failed")
+    verified["_payment_required"] = header
+
+    skill_input = stored.get("skill_input") or {}
+    try:
+        deliverable = await invoke_skill(skill, skill_input)
+        if isinstance(deliverable, dict) and deliverable.get("success") is False:
+            raise RuntimeError(str(deliverable.get("error") or "skill failed"))
+    except Exception as exc:
+        await release_payment_attempt("a2a", skill, begin.fingerprint)
+        logger.warning("a2a skill execution failed before settle: %s", exc)
+        msg = _agent_message(
+            f"Skill execution failed; payment was not settled: {str(exc)[:160]}",
+            {META_STATUS: "payment-failed", META_ERROR: "SKILL_FAILED",
+             META_RECEIPTS: list(stored.get("receipts") or [])},
+        )
+        task = build_task(skill, state="failed", message=msg, task_id=task_id)
+        stored.update(task)
         return get_task(task_id) or task
 
+    settled = await x402_services.settle_verified_payment(verified)
+    settlement = settled.get("settlement") or {}
+    if not settled.get("payment_settled"):
+        await release_payment_attempt("a2a", skill, begin.fingerprint)
+        return _payment_failed(
+            settled.get("settlement_error") or settled.get("invalid_reason") or "settlement_failed",
+            "SETTLEMENT_FAILED",
+        )
+    if not await complete_payment_attempt("a2a", skill, begin.fingerprint, settlement):
+        await release_payment_attempt("a2a", skill, begin.fingerprint)
+        return _payment_failed("settlement_tx_replay", "DUPLICATE_PAYMENT")
+
+    receipts = list(stored.get("receipts") or []) + [
+        _settlement_receipt(settlement, network=network)
+    ]
     msg = _agent_message(
         "Payment completed. Skill result attached as artifact.",
         {META_STATUS: "payment-completed", META_RECEIPTS: receipts},
@@ -433,11 +526,18 @@ async def send_message(params: dict[str, Any]) -> dict[str, Any]:
             {META_STATUS: "payment-rejected"},
             message_id=message_id,
         )
-        task = build_task("unknown", state="canceled", message=msg, task_id=tid)
-        TASKS[tid] = task
-        return task
+        await _hydrate_task(task_id)
+        existing = TASKS.get(tid)
+        skill = (existing or {}).get("skillId") or "unknown"
+        if existing is not None and _state_of(existing) in _TERMINAL_STATES:
+            return get_task(tid) or existing
+        task = build_task(skill, state="canceled", message=msg, task_id=tid)
+        TASKS[tid] = {**(existing or {}), **task}
+        await _persist_task(tid)
+        return get_task(tid) or task
 
     if pay_status == "payment-submitted" or payload_obj is not None:
+        await _hydrate_task(task_id)
         if not task_id or task_id not in TASKS:
             raise ValueError("task not found for payment submission")
         existing = TASKS[task_id]
@@ -446,7 +546,9 @@ async def send_message(params: dict[str, Any]) -> dict[str, Any]:
         # rewound to input-required by a duplicate payment submission.
         if existing_state in ("completed", "canceled", "failed"):
             return get_task(task_id) or existing
-        return await _continue_paid_task(task_id, payload_obj)
+        result = await _continue_paid_task(task_id, payload_obj)
+        await _persist_task(task_id)
+        return result
 
     skill, arguments = _extract_skill_and_params(params)
     skill = skill.strip()
@@ -469,7 +571,9 @@ async def send_message(params: dict[str, Any]) -> dict[str, Any]:
         TASKS[task["id"]] = task
         return task
 
-    return await _challenge_task(skill, arguments, message_id)
+    task = await _challenge_task(skill, arguments, message_id)
+    await _persist_task(task["id"])
+    return task
 
 
 async def handle_jsonrpc(payload: dict[str, Any]) -> dict[str, Any]:
@@ -497,6 +601,7 @@ async def handle_jsonrpc(payload: dict[str, Any]) -> dict[str, Any]:
         task_id = params.get("id") or params.get("taskId") or params.get("task_id")
         if not task_id:
             return jsonrpc_error(req_id, -32602, "tasks/get requires id")
+        await _hydrate_task(str(task_id))
         found = get_task(str(task_id))
         if found is None:
             return jsonrpc_error(req_id, -32001, f"Task not found: {task_id}")
