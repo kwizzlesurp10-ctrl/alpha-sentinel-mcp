@@ -10,12 +10,13 @@ The registry drives:
 Remember to touch ALL related files when adding a new tool!
 """
 
+from typing import Any
 
 # ============================================================================
 # Tool Specifications (SSOT)
 # ============================================================================
 
-TOOL_SPECS = [
+TOOL_SPECS: list[dict[str, Any]] = [
     {
         "name": "fetch_price",
         "description": """Fetch real-time cryptocurrency price from CoinGecko API.

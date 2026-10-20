@@ -1,7 +1,7 @@
 """Market report generation module - Comprehensive analysis synthesis."""
 
 import logging
-from datetime import datetime
+from datetime import UTC, datetime
 
 from app.config import settings
 from app.intelligence.price_feed import fetch_price_from_coingecko
@@ -124,7 +124,7 @@ async def generate_market_report_endpoint(
             "success": True,
             "report": {
                 "type": report_type,
-                "generated_at": datetime.utcnow().isoformat(),
+                "generated_at": datetime.now(UTC).isoformat(),
                 "lookback_days": lookback_days,
                 "symbols": symbols,
                 "executive_summary": exec_summary,

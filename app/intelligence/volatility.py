@@ -2,7 +2,7 @@
 
 import logging
 import math
-from datetime import datetime
+from datetime import UTC, datetime
 
 from app.config import settings
 from app.intelligence.price_feed import get_price_history
@@ -141,7 +141,7 @@ async def analyze_volatility_endpoint(
             "window_minutes": window_minutes,
             "threshold_used": z_threshold,
             "cost_usd": settings.volatility_alerts_price_usd,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         }
         
     except ValueError as e:

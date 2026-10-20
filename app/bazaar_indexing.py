@@ -151,7 +151,7 @@ def bazaar_indexing_status(
     body = settle_body if _is_obj(settle_body) else _model_dump(settle_body)
     if _is_obj(body):
         exts = body.get("extensions") if _is_obj(body.get("extensions")) else None
-        if _is_obj(exts):
+        if isinstance(exts, dict):
             got = _pick(exts.get(BAZAAR_KEY), "settle-body")
             if got:
                 return got

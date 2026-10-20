@@ -77,7 +77,8 @@ async def test_build_seller_requirements_local_fallback_has_usdc_extra(monkeypat
 
 
 def test_setup_script_default_is_canonical():
-    text = open("setup-payment-address.sh", encoding="utf-8").read()
+    with open("setup-payment-address.sh", encoding="utf-8") as fh:
+        text = fh.read()
     assert f'DEFAULT_ADDRESS="{CANONICAL_PAY_TO}"' in text
     # Retired addresses may appear only in the refuse case list.
     assert 'DEFAULT_ADDRESS="0xAB745e5F576667037696e78ba7dA28E193E4423D"' not in text
