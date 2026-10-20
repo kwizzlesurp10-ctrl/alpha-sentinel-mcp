@@ -11,6 +11,7 @@ from httpx import ASGITransport, AsyncClient
 from app.application import app
 from app.commerce_payment import store_tool_challenge
 from app.config import settings
+from tests.conftest import make_payment_signature
 
 
 def _challenge_header(pay_to: str) -> str:
@@ -66,7 +67,7 @@ async def test_http_gate_402_when_settle_fails_after_verify(monkeypatch, seed, m
         response = await client.post(
             "/tools/fetch_price",
             json={"symbol": "btc"},
-            headers={"PAYMENT-SIGNATURE": "sig-settle-fail-gate"},
+            headers={"PAYMENT-SIGNATURE": make_payment_signature("sig-settle-fail-gate")},
         )
     assert response.status_code == 402
     assert response.json().get("error") == "Payment settlement failed"
@@ -90,6 +91,6 @@ async def test_http_gate_passes_when_payment_settled(monkeypatch, seed, mock_coi
         response = await client.post(
             "/tools/fetch_price",
             json={"symbol": "btc"},
-            headers={"PAYMENT-SIGNATURE": "sig-settled-ok-gate"},
+            headers={"PAYMENT-SIGNATURE": make_payment_signature("sig-settled-ok-gate")},
         )
     assert response.status_code == 200

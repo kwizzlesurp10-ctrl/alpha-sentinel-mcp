@@ -161,6 +161,22 @@ def _network_of(requirements: Any) -> str | None:
     return getattr(requirements, "network", None)
 
 
+def decode_payment_signature(payment_signature: str) -> Any:
+    """Decode a PAYMENT-SIGNATURE header into a PaymentPayload (raises on garbage)."""
+    import base64
+
+    from x402.http import decode_payment_signature_header
+    from x402.schemas import PaymentPayload
+
+    if not payment_signature or len(payment_signature) > 16384:
+        raise ValueError("payment signature empty or too large")
+    try:
+        return decode_payment_signature_header(payment_signature)
+    except Exception:
+        raw = json.loads(base64.b64decode(payment_signature, validate=True).decode("utf-8"))
+        return PaymentPayload.model_validate(raw)
+
+
 def _decode_payment_inputs(
     payment_signature: str,
     payment_required: str,
