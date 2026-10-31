@@ -38,6 +38,9 @@ from app.tool_payment_gate import finalize_pending_payment, handle_paid_tool_req
 from app.tools_registry import (
     FREE_TOOLS,
     TOOL_COUNT,
+    TOOL_PRICES,
+    list_all_tools,
+    list_free_tools,
 )
 from app.x402_services import X402Services
 
@@ -615,6 +618,9 @@ async def get_stats():
         "calls_today": stats.get("calls_today", 0),
         "avg_latency_ms": stats.get("avg_latency_ms", 0.0),
         "tool_count": TOOL_COUNT,
+        "active_tools": list_all_tools(),
+        "free_tools": list_free_tools(),
+        "pricing": TOOL_PRICES,
         "network": settings.x402_default_network,
         "pay_to_configured": bool(settings.x402_pay_to_address),
         "timestamp": _now_iso(),

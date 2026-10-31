@@ -160,7 +160,7 @@ class Settings(BaseSettings):
     dashboard_actions: bool = False
     trust_forwarded_host: bool = False
 
-    swarm_enabled: bool = False
+    swarm_enabled: bool = True
     swarm_markup: float = 3.0
     swarm_min_price_usdc: float = 0.01
     swarm_max_upstream_calls: int = 3
