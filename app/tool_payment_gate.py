@@ -41,6 +41,8 @@ def clear_built_challenge_cache() -> None:
 
 
 def _tool_discovery_example(tool_name: str) -> dict[str, Any]:
+    if tool_name == "fetch_price":
+        return {"symbol": "btc"}
     if tool_name == "analyze_volatility":
         return {"symbol": "btc", "window_minutes": 60, "z_threshold": 2.0}
     if tool_name == "aggregate_sentiment":
