@@ -1,8 +1,11 @@
 """Commerce Layer - Quota, payments, and tier management."""
 
 import logging
-from dataclasses import dataclass
+import json
+from dataclasses import dataclass, asdict
 from datetime import UTC, datetime, timedelta
+
+from app.redis_client import command as redis_cmd
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +18,7 @@ class QuotaState:
     remaining: int
     limit: int
     rate_limit_per_min: int
-    reset_at: datetime | None = None
+    reset_at: str | None = None # Store as ISO string in Redis
     
     def is_exhausted(self) -> bool:
         return self.remaining <= 0
@@ -25,34 +28,29 @@ class QuotaState:
 
 
 class CommerceLayer:
-    """Manages quotas, tiers, and tool credit purchases."""
+    """Manages quotas, tiers, and tool credit purchases via Redis persistence."""
     
     def __init__(self, config):
         self.config = config
-        self.quotas: dict[str, QuotaState] = {}  # In-memory (use Redis in production)
-        self.stats = {
-            "total_agents": 0,
-            "free_active": 0,
-            "pro_active": 0,
-            "tool_credits_sold": 0,
-            "revenue_today_usd": 0.0,
-            "calls_today": 0,
-            "avg_latency_ms": 0.0,
-        }
+        self.stats_key = "stats:global"
+        self.quota_prefix = "quota:"
         
-    def get_quota(self, agent_id: str) -> QuotaState:
-        """Get or initialize quota state for an agent."""
-        if agent_id not in self.quotas:
-            self._initialize_agent(agent_id)
+    async def get_quota(self, agent_id: str) -> QuotaState:
+        """Get or initialize quota state for an agent from Redis."""
+        key = f"{self.quota_prefix}{agent_id}"
+        data = await redis_cmd("GET", key)
         
-        return self.quotas[agent_id]
+        if data is None:
+            return await self._initialize_agent(agent_id)
+        
+        return QuotaState(**json.loads(data))
     
-    def _initialize_agent(self, agent_id: str):
-        """Create new free tier quota for agent."""
+    async def _initialize_agent(self, agent_id: str) -> QuotaState:
+        """Create new free tier quota for agent and store in Redis."""
         now = datetime.now(UTC)
-        reset_at = now + timedelta(days=1)
+        reset_at = (now + timedelta(days=1)).isoformat()
         
-        self.quotas[agent_id] = QuotaState(
+        quota = QuotaState(
             agent_id=agent_id,
             tier="free",
             remaining=self.config.free_tier_monthly_quota,
@@ -61,103 +59,113 @@ class CommerceLayer:
             reset_at=reset_at,
         )
         
-        self.stats["total_agents"] += 1
-        self.stats["free_active"] = self.stats.get("free_active", 0) + 1
+        await self._save_quota(quota)
+        
+        # Increment global stats in Redis
+        await redis_cmd("HINCRBY", self.stats_key, "total_agents", 1)
+        await redis_cmd("HINCRBY", self.stats_key, "free_active", 1)
         
         logger.info(f"Initialized free tier quota for agent: {agent_id}")
+        return quota
     
-    def upgrade_to_pro(self, agent_id: str, payment_verified: bool = True):
+    async def _save_quota(self, quota: QuotaState):
+        key = f"{self.quota_prefix}{quota.agent_id}"
+        await redis_cmd("SET", key, json.dumps(asdict(quota)))
+    
+    async def upgrade_to_pro(self, agent_id: str, payment_verified: bool = True):
         """Upgrade agent to pro tier after payment verification."""
         if not payment_verified:
             raise ValueError("Payment verification required for upgrade")
         
-        if agent_id not in self.quotas:
-            self._initialize_agent(agent_id)
-        
-        quota = self.quotas[agent_id]
+        quota = await self.get_quota(agent_id)
         quota.tier = "pro"
         quota.remaining = self.config.pro_tier_monthly_quota
         quota.limit = self.config.pro_tier_monthly_quota
         quota.rate_limit_per_min = self.config.pro_tier_rate_limit_per_min
         
-        self.stats["pro_active"] += 1
-        self.stats["free_active"] -= 1
+        await self._save_quota(quota)
+        
+        await redis_cmd("HINCRBY", self.stats_key, "pro_active", 1)
+        await redis_cmd("HINCRBY", self.stats_key, "free_active", -1)
         
         logger.info(f"Upgraded agent {agent_id} to PRO tier")
     
-    def purchase_tool_credits(self, agent_id: str, num_credits: int = 100) -> tuple[int, float]:
-        """Purchase tool credits bundle.
+    async def purchase_tool_credits(self, agent_id: str, num_credits: int = 100) -> tuple[int, float]:
+        """Purchase tool credits bundle."""
+        quota = await self.get_quota(agent_id)
         
-        Args:
-            agent_id: Agent purchasing credits
-            num_credits: Number of credits to buy (default: 100)
-            
-        Returns:
-            (new_total_credits, total_cost_usd)
-            
-        Raises:
-            ValueError if payment not verified
-        """
-        # In production: verify Stripe/x402 payment first
-        
-        if agent_id not in self.quotas:
-            self._initialize_agent(agent_id)
-        
-        # Add credits to remaining quota
-        self.quotas[agent_id].remaining += num_credits
-        self.quotas[agent_id].limit += num_credits
+        quota.remaining += num_credits
+        quota.limit += num_credits
+        await self._save_quota(quota)
         
         cost = (num_credits / 100) * self.config.tool_credit_pack_price
         
-        self.stats["tool_credits_sold"] += num_credits
-        self.stats["revenue_today_usd"] += cost
+        await redis_cmd("HINCRBY", self.stats_key, "tool_credits_sold", num_credits)
+        # Revenue is float, so we use HINCRBYFLOAT if available, or manual read-modify-write
+        # For simplicity with the custom redis_cmd, we'll handle revenue separately or use cents
+        current_rev = float(await redis_cmd("HGET", self.stats_key, "revenue_today_usd") or 0)
+        await redis_cmd("HSET", self.stats_key, "revenue_today_usd", str(current_rev + cost))
         
         logger.info(f"Agent {agent_id} purchased {num_credits} credits (${cost})")
-        
-        return self.quotas[agent_id].remaining, cost
+        return quota.remaining, cost
     
-    def consume_call(self, agent_id: str, cost_usd: float = 0.0) -> bool:
-        """Consume one call from agent's quota.
-        
-        Args:
-            agent_id: Agent making the call
-            cost_usd: Cost of this specific call (for revenue tracking)
-            
-        Returns:
-            True if call allowed, False if quota exhausted
-        """
-        quota = self.get_quota(agent_id)
+    async def consume_call(self, agent_id: str, cost_usd: float = 0.0) -> bool:
+        """Consume one call from agent's quota."""
+        quota = await self.get_quota(agent_id)
         
         if not quota.can_execute():
             logger.warning(f"Quota exhausted for agent: {agent_id}")
             return False
         
         quota.remaining -= 1
-        self.stats["calls_today"] += 1
-        self.stats["revenue_today_usd"] += cost_usd
+        await self._save_quota(quota)
+        
+        await redis_cmd("HINCRBY", self.stats_key, "calls_today", 1)
+        current_rev = float(await redis_cmd("HGET", self.stats_key, "revenue_today_usd") or 0)
+        await redis_cmd("HSET", self.stats_key, "revenue_today_usd", str(current_rev + cost_usd))
         
         return True
     
-    def check_rate_limit(self, agent_id: str, requests_per_min: int = 1) -> bool:
-        """Check if agent is within rate limit.
-        
-        Simplified implementation - use Redis for precise sliding window.
-        """
-        quota = self.get_quota(agent_id)
+    async def check_rate_limit(self, agent_id: str, requests_per_min: int = 1) -> bool:
+        """Check if agent is within rate limit."""
+        quota = await self.get_quota(agent_id)
         return requests_per_min <= quota.rate_limit_per_min
     
-    def status(self) -> dict:
+    async def status(self) -> dict:
         """Get commerce layer health status."""
+        # We can't easily count keys in Redis without SCAN, so we'll use the stats key
+        stats = await redis_cmd("HGETALL", self.stats_key) or {}
+        # HGETALL in Upstash REST returns a list of [key, val, key, val...]
+        # We need to convert it to a dict
+        stats_dict = {}
+        if isinstance(stats, list):
+            for i in range(0, len(stats), 2):
+                stats_dict[stats[i]] = stats[i+1]
+        
         return {
             "status": "operational",
-            "active_agents": len(self.quotas),
-            "free_tier_count": sum(1 for q in self.quotas.values() if q.tier == "free"),
-            "pro_tier_count": sum(1 for q in self.quotas.values() if q.tier == "pro"),
+            "active_agents": int(stats_dict.get("total_agents", 0)),
+            "free_tier_count": int(stats_dict.get("free_active", 0)),
+            "pro_tier_count": int(stats_dict.get("pro_active", 0)),
         }
     
-    def get_stats(self) -> dict:
-        """Get current usage statistics."""
-        return self.stats.copy()
+    async def get_stats(self) -> dict:
+        """Get current usage statistics from Redis."""
+        stats = await redis_cmd("HGETALL", self.stats_key) or {}
+        stats_dict = {}
+        if isinstance(stats, list):
+            for i in range(0, len(stats), 2):
+                stats_dict[stats[i]] = stats[i+1]
+        
+        return {
+            "total_agents": int(stats_dict.get("total_agents", 0)),
+            "free_active": int(stats_dict.get("free_active", 0)),
+            "pro_active": int(stats_dict.get("pro_active", 0)),
+            "tool_credits_sold": int(stats_dict.get("tool_credits_sold", 0)),
+            "revenue_today_usd": float(stats_dict.get("revenue_today_usd", 0.0)),
+            "calls_today": int(stats_dict.get("calls_today", 0)),
+            "avg_latency_ms": float(stats_dict.get("avg_latency_ms", 0.0)),
+        }
 
 
 # ============================================================================

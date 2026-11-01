@@ -241,7 +241,7 @@ async def health_check():
         "timestamp": _now_iso(),
         "components": {
             "api": "running",
-            "commerce": commerce_layer.status(),
+            "commerce": await commerce_layer.status(),
             "x402": x402_status,
             "redis": redis_status,
         },
@@ -455,7 +455,7 @@ async def http_fetch_price(request: Request):
         raise HTTPException(status_code=400, detail="symbol is required")
     try:
         result = await fetch_price_endpoint(str(symbol))
-        commerce_layer.consume_call("anonymous", cost_usd=0.0)
+        await commerce_layer.consume_call("anonymous", cost_usd=0.0)
         return result
     except Exception as e:
         logger.error("Price fetch failed: %s", e)
@@ -589,7 +589,7 @@ async def get_quota(agent_id: str, request: Request):
     caller = _agent_id_from_request(request, agent_id)
     if caller != agent_id and not _operator_authorized(request):
         raise HTTPException(status_code=403, detail="quota visible for your agent id only")
-    quota = commerce_layer.get_quota(agent_id)
+    quota = await commerce_layer.get_quota(agent_id)
     return {
         "agent_id": agent_id,
         "tier": quota.tier,
@@ -597,14 +597,14 @@ async def get_quota(agent_id: str, request: Request):
         "remaining_calls": quota.remaining,
         "limit": quota.limit,
         "rate_limit_per_min": quota.rate_limit_per_min,
-        "reset_at": quota.reset_at.isoformat() if quota.reset_at else None,
+        "reset_at": quota.reset_at if quota.reset_at else None,
     }
 
 
 @api.get("/stats")
 async def get_stats():
-    stats = commerce_layer.get_stats()
-    commerce_status = commerce_layer.status()
+    stats = await commerce_layer.get_stats()
+    commerce_status = await commerce_layer.status()
     return {
         "total_agents": stats.get("total_agents", 0),
         "free_tier_active": max(
