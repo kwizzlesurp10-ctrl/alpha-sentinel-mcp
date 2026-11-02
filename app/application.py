@@ -5,17 +5,20 @@ from __future__ import annotations
 import json
 import logging
 from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.routing import APIRouter
 
 from app.agent_surface import (
     agent_card,
     llms_txt,
     mcp_well_known,
+    robots_txt,
+    sitemap_xml,
     well_known_x402,
 )
 from app.commerce import CommerceLayer
@@ -55,7 +58,18 @@ app = FastAPI(
     description="Market Intelligence x402 Marketplace — predictive crypto intel for AI agents.",
     version="0.2.0",
     contact={"name": "Keith Severson", "email": settings.contact_email},
+    docs_url="/openapi",
 )
+
+_ROOT_DIR = Path(__file__).resolve().parent.parent
+_STATIC_DIR = _ROOT_DIR / "static"
+_DOCS_DIR = _STATIC_DIR / "docs"
+_SPA_INDEX = _ROOT_DIR / "dashboard" / "dist" / "index.html"
+PLAYBOOK_SLUGS = {
+    "automate-volatility-alerts",
+    "integrate-predictive-alpha",
+    "reduce-slippage-sentiment",
+}
 
 app.add_middleware(
     CORSMiddleware,
@@ -215,8 +229,59 @@ async def normalize_vercel_api_path(request: Request, call_next):
 api = APIRouter(tags=["alpha-sentinel"])
 
 
-# Root "/" is reserved for Mission Control SPA (see api/index.py).
-# API discovery lives at /health and /docs.
+@api.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def semantic_landing_page():
+    """Serve the semantic HTML5 landing page for human & AI agent discovery."""
+    for candidate in (_STATIC_DIR / "index.html", _ROOT_DIR / "index.html"):
+        if candidate.is_file():
+            return HTMLResponse(content=candidate.read_text(encoding="utf-8"))
+    if _SPA_INDEX.is_file():
+        return HTMLResponse(content=_SPA_INDEX.read_text(encoding="utf-8"))
+    return JSONResponse(
+        content={
+            "service": "Alpha Sentinel MCP Server",
+            "status": "operational",
+            "health": "/health",
+            "docs": "/docs",
+            "mcp": "/.well-known/mcp.json",
+        }
+    )
+
+
+@api.get("/mission-control", response_class=HTMLResponse, include_in_schema=False)
+async def mission_control_spa():
+    """Serve the interactive Mission Control SPA bundle if built."""
+    if _SPA_INDEX.is_file():
+        return HTMLResponse(content=_SPA_INDEX.read_text(encoding="utf-8"))
+    for candidate in (_STATIC_DIR / "index.html", _ROOT_DIR / "index.html"):
+        if candidate.is_file():
+            return HTMLResponse(content=candidate.read_text(encoding="utf-8"))
+    raise HTTPException(status_code=404, detail="Mission Control bundle not found")
+
+
+@api.get("/docs", response_class=HTMLResponse, include_in_schema=False)
+@api.get("/docs/", response_class=HTMLResponse, include_in_schema=False)
+async def playbooks_index():
+    """Serve the Use-Case Documentation & Playbooks hub."""
+    index_path = _DOCS_DIR / "index.html"
+    if not index_path.is_file():
+        raise HTTPException(status_code=404, detail="Playbooks index not found")
+    return HTMLResponse(content=index_path.read_text(encoding="utf-8"))
+
+
+@api.get("/docs/{playbook}", response_class=HTMLResponse, include_in_schema=False)
+async def playbook_article(playbook: str):
+    """Serve an individual technical playbook article."""
+    slug = playbook[:-5] if playbook.endswith(".html") else playbook
+    if slug in ("index", ""):
+        return await playbooks_index()
+    if slug not in PLAYBOOK_SLUGS:
+        raise HTTPException(status_code=404, detail=f"Playbook '{playbook}' not found")
+    article_path = _DOCS_DIR / f"{slug}.html"
+    if not article_path.is_file():
+        raise HTTPException(status_code=404, detail=f"Playbook '{slug}' file missing")
+    return HTMLResponse(content=article_path.read_text(encoding="utf-8"))
+
 
 
 @api.get("/health")
@@ -552,6 +617,8 @@ async def agent_json_endpoint():
 
 
 @api.get("/.well-known/mcp")
+@api.get("/.well-known/mcp.json")
+@api.get("/.well-known/mcp/server-card.json")
 async def mcp_manifest():
     return JSONResponse(content=mcp_well_known())
 
@@ -564,6 +631,16 @@ async def well_known_x402_endpoint():
 @api.get("/llms.txt", response_class=PlainTextResponse)
 async def llms_txt_endpoint():
     return llms_txt()
+
+
+@api.get("/robots.txt", response_class=PlainTextResponse)
+async def robots_txt_endpoint():
+    return robots_txt()
+
+
+@api.get("/sitemap.xml", include_in_schema=False)
+async def sitemap_xml_endpoint():
+    return Response(content=sitemap_xml(), media_type="application/xml")
 
 
 @api.get("/catalog")

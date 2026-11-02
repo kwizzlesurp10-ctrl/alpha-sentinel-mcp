@@ -20,20 +20,35 @@ try:
     _STATIC = _ROOT / "dashboard" / "dist"
     _ASSETS = _STATIC / "assets"
     _INDEX = _STATIC / "index.html"
+    _SEMANTIC_INDEX = _ROOT / "static" / "index.html"
 
     if _ASSETS.is_dir():
         app.mount("/assets", StaticFiles(directory=str(_ASSETS)), name="assets")
 
     @app.get("/", include_in_schema=False)
     async def mission_control_root():
+        if _SEMANTIC_INDEX.is_file():
+            return FileResponse(str(_SEMANTIC_INDEX), media_type="text/html")
         if _INDEX.is_file():
-            return FileResponse(str(_INDEX))
+            return FileResponse(str(_INDEX), media_type="text/html")
         return {
             "service": "Alpha Sentinel MCP Server",
             "status": "operational",
             "mission_control": "static bundle missing — API only",
             "health": "/health",
             "docs": "/docs",
+        }
+
+    @app.get("/mission-control", include_in_schema=False)
+    async def mission_control_spa_entry():
+        if _INDEX.is_file():
+            return FileResponse(str(_INDEX), media_type="text/html")
+        if _SEMANTIC_INDEX.is_file():
+            return FileResponse(str(_SEMANTIC_INDEX), media_type="text/html")
+        return {
+            "service": "Alpha Sentinel MCP Server",
+            "status": "operational",
+            "mission_control": "static bundle missing — API only",
         }
 
 except Exception:  # pragma: no cover

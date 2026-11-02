@@ -1,0 +1,452 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "schema_version": "1.0",
+  "protocolVersion": "2024-11-05",
+  "name": "io.github.kwizzlesurp10-ctrl/alpha-sentinel-mcp",
+  "title": "Alpha Sentinel \u2014 Predictive Alpha & On-chain Market Intelligence",
+  "version": "0.2.0",
+  "description": "Autonomous Trading Data & On-chain Market Intelligence MCP Server. Provides statistical Z-score volatility alerts, multi-source sentiment aggregation, multi-factor crypto risk scoring, and executive market intelligence reports via x402 Monetized API (USDC on Base).",
+  "keywords": [
+    "Predictive Alpha",
+    "On-chain Market Intelligence",
+    "x402 Monetized API",
+    "Autonomous Trading Data",
+    "Crypto Volatility Alerts",
+    "Sentiment Aggregation",
+    "MCP Server",
+    "AgentCash",
+    "Base USDC"
+  ],
+  "homepage": "https://alpha-sentinel-mcp.vercel.app",
+  "documentation": "https://alpha-sentinel-mcp.vercel.app/docs",
+  "llms_txt": "https://alpha-sentinel-mcp.vercel.app/llms.txt",
+  "playbooks": [
+    {
+      "slug": "automate-volatility-alerts",
+      "title": "How to Automate Crypto Volatility Alerts for Trading Bots",
+      "url": "https://alpha-sentinel-mcp.vercel.app/docs/automate-volatility-alerts"
+    },
+    {
+      "slug": "integrate-predictive-alpha",
+      "title": "Integrating Predictive Alpha Feeds via MCP & x402",
+      "url": "https://alpha-sentinel-mcp.vercel.app/docs/integrate-predictive-alpha"
+    },
+    {
+      "slug": "reduce-slippage-sentiment",
+      "title": "Reducing Slippage with Real-Time Sentiment Aggregation",
+      "url": "https://alpha-sentinel-mcp.vercel.app/docs/reduce-slippage-sentiment"
+    }
+  ],
+  "x402": {
+    "version": 2,
+    "network": "eip155:8453",
+    "asset": "USDC",
+    "discovery": "https://alpha-sentinel-mcp.vercel.app/.well-known/x402",
+    "payment_header": "PAYMENT-SIGNATURE",
+    "challenge_header": "PAYMENT-REQUIRED",
+    "receipt_header": "PAYMENT-RESPONSE"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://alpha-sentinel-mcp.vercel.app/mcp"
+    }
+  ],
+  "mcpServers": {
+    "alpha-sentinel": {
+      "url": "https://alpha-sentinel-mcp.vercel.app/mcp",
+      "type": "streamable-http",
+      "transport": "streamable-http",
+      "command": "python",
+      "args": [
+        "run_stdio.py"
+      ],
+      "description": "Alpha Sentinel \u2014 Predictive Alpha & On-chain Market Intelligence (x402 Monetized API for Autonomous Trading Data)",
+      "tools": [
+        {
+          "name": "fetch_price",
+          "description": "Fetch real-time cryptocurrency price from CoinGecko API.\n        \nReturns current price, 24h change, and trading volume for any supported cryptocurrency.\n\n**Use Case:** Get instant price data before executing trades or analyzing positions.\n\n**Cost:** $0.005 USD per call (cheapest tier - high frequency allowed)\n\n**Example Response:**\n{\n  \"symbol\": \"bitcoin\",\n  \"price_usd\": 67842.50,\n  \"change_24h\": 2.34,\n  \"volume_24h\": 28500000000,\n  \"timestamp\": \"2026-08-24T15:30:00Z\"\n}",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string",
+                "description": "Cryptocurrency symbol (e.g., 'btc', 'eth', 'sol')",
+                "minLength": 1
+              }
+            },
+            "required": [
+              "symbol"
+            ]
+          },
+          "requires_env": false,
+          "tier_access": {
+            "free": true,
+            "pro": true
+          }
+        },
+        {
+          "name": "analyze_volatility",
+          "description": "Analyze price volatility using statistical Z-score anomaly detection.\n        \nCalculates standard deviations from mean price to detect anomalous movements.\nConfigurable thresholds and time windows for customized analysis.\n\n**Use Case:** Identify unusual price movements before they become obvious trends.\n\n**Cost:** $0.02 USD per call\n\n**Parameters:**\n- `symbol`: Crypto symbol to analyze\n- `window_minutes`: Historical window (1-1440 min, default: 60)\n- `z_threshold`: Std dev threshold for anomalies (0.1-5.0\u03c3, default: 2.0)\n\n**Alert Levels:** NORMAL \u2192 MODERATE \u2192 HIGH \u2192 CRITICAL",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "symbol": {
+                "type": "string",
+                "description": "Cryptocurrency symbol"
+              },
+              "window_minutes": {
+                "type": "integer",
+                "default": 60,
+                "minimum": 1,
+                "maximum": 1440,
+                "description": "Analysis window in minutes"
+              },
+              "z_threshold": {
+                "type": "number",
+                "default": 2.0,
+                "minimum": 0.1,
+                "maximum": 5.0,
+                "description": "Z-score threshold for anomalies"
+              }
+            },
+            "required": [
+              "symbol"
+            ]
+          },
+          "requires_env": false,
+          "tier_access": {
+            "free": false,
+            "pro": true
+          }
+        },
+        {
+          "name": "aggregate_sentiment",
+          "description": "Aggregate social media sentiment across multiple sources.\n        \nCombines Twitter/X, Reddit, and other platforms into unified sentiment scores (-1.0 to +1.0).\nDetects momentum shifts and trend changes in community opinion.\n\n**Use Case:** Gauge market psychology before major moves.\n\n**Cost:** $0.01 USD per call\n\n**Sources:** twitter, reddit, telegram, news\n\n**Output:** Overall sentiment category (bullish/neutral/bearish) with breakdown by source.",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "symbols": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "List of crypto symbols to analyze",
+                "minItems": 1
+              },
+              "sources": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "twitter",
+                    "reddit",
+                    "telegram",
+                    "news"
+                  ]
+                },
+                "default": [
+                  "twitter",
+                  "reddit"
+                ],
+                "description": "Data sources to query"
+              },
+              "window_minutes": {
+                "type": "integer",
+                "default": 60,
+                "minimum": 5,
+                "maximum": 1440,
+                "description": "Time window for sentiment history"
+              }
+            },
+            "required": [
+              "symbols"
+            ]
+          },
+          "requires_env": true,
+          "tier_access": {
+            "free": false,
+            "pro": true
+          }
+        },
+        {
+          "name": "calculate_risk_score",
+          "description": "Calculate multi-factor risk assessment for cryptocurrencies.\n        \nCombines volatility, liquidity, market cap tier, and Bitcoin correlation into\na comprehensive risk score (0-1 scale) with actionable recommendations.\n\n**Use Case:** Assess position sizing and stop-loss levels.\n\n**Cost:** $0.03 USD per call\n\n**Risk Levels:** LOW | MEDIUM | HIGH | CRITICAL\n\n**Factors Analyzed:**\n- Volatility risk (40% weight)\n- Liquidity risk (25% weight)\n- Market cap tier (20% weight)\n- BTC correlation (15% weight)",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "symbols": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "List of crypto symbols to assess",
+                "minItems": 1
+              },
+              "include_factors": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "volatility",
+                    "liquidity",
+                    "correlation"
+                  ]
+                },
+                "default": [
+                  "volatility",
+                  "liquidity",
+                  "correlation"
+                ],
+                "description": "Risk factors to analyze"
+              }
+            },
+            "required": [
+              "symbols"
+            ]
+          },
+          "requires_env": false,
+          "tier_access": {
+            "free": false,
+            "pro": true
+          }
+        },
+        {
+          "name": "generate_market_report",
+          "description": "Generate comprehensive market intelligence report.\n        \nSynthesizes price, volatility, sentiment, and risk data into actionable insights.\nPerfect for daily briefings or strategic planning.\n\n**Use Case:** End-of-day summary or pre-trade due diligence.\n\n**Cost:** $0.15 USD per report\n\n**Report Types:**\n- daily: 24-hour overview\n- weekly: 7-day trends  \n- monthly: 30-day strategic analysis\n\n**Includes:** Executive summary, key signals, actionable recommendations",
+          "inputSchema": {
+            "type": "object",
+            "properties": {
+              "report_type": {
+                "type": "string",
+                "enum": [
+                  "daily",
+                  "weekly",
+                  "monthly"
+                ],
+                "default": "daily",
+                "description": "Type of report to generate"
+              },
+              "symbols": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [
+                  "bitcoin",
+                  "ethereum"
+                ],
+                "description": "Cryptocurrencies to include"
+              },
+              "format": {
+                "type": "string",
+                "enum": [
+                  "json",
+                  "pdf"
+                ],
+                "default": "json",
+                "description": "Output format"
+              }
+            },
+            "required": []
+          },
+          "requires_env": false,
+          "tier_access": {
+            "free": false,
+            "pro": true
+          }
+        }
+      ]
+    }
+  },
+  "url": "https://alpha-sentinel-mcp.vercel.app/mcp",
+  "streamableHttpUrl": "https://alpha-sentinel-mcp.vercel.app/mcp",
+  "transport": "streamable-http",
+  "tools": [
+    {
+      "name": "fetch_price",
+      "description": "Fetch real-time cryptocurrency price from CoinGecko API.\n        \nReturns current price, 24h change, and trading volume for any supported cryptocurrency.\n\n**Use Case:** Get instant price data before executing trades or analyzing positions.\n\n**Cost:** $0.005 USD per call (cheapest",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "description": "Cryptocurrency symbol (e.g., 'btc', 'eth', 'sol')",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "symbol"
+        ]
+      },
+      "price": "$0.005",
+      "free_tier": true,
+      "endpoint": "https://alpha-sentinel-mcp.vercel.app/tools/fetch_price"
+    },
+    {
+      "name": "analyze_volatility",
+      "description": "Analyze price volatility using statistical Z-score anomaly detection.\n        \nCalculates standard deviations from mean price to detect anomalous movements.\nConfigurable thresholds and time windows for customized analysis.\n\n**Use Case:** Identify unusual price movements before th",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "symbol": {
+            "type": "string",
+            "description": "Cryptocurrency symbol"
+          },
+          "window_minutes": {
+            "type": "integer",
+            "default": 60,
+            "minimum": 1,
+            "maximum": 1440,
+            "description": "Analysis window in minutes"
+          },
+          "z_threshold": {
+            "type": "number",
+            "default": 2.0,
+            "minimum": 0.1,
+            "maximum": 5.0,
+            "description": "Z-score threshold for anomalies"
+          }
+        },
+        "required": [
+          "symbol"
+        ]
+      },
+      "price": "$0.02",
+      "free_tier": false,
+      "endpoint": "https://alpha-sentinel-mcp.vercel.app/tools/analyze_volatility"
+    },
+    {
+      "name": "aggregate_sentiment",
+      "description": "Aggregate social media sentiment across multiple sources.\n        \nCombines Twitter/X, Reddit, and other platforms into unified sentiment scores (-1.0 to +1.0).\nDetects momentum shifts and trend changes in community opinion.\n\n**Use Case:** Gauge market psychology before major mov",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "symbols": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of crypto symbols to analyze",
+            "minItems": 1
+          },
+          "sources": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "twitter",
+                "reddit",
+                "telegram",
+                "news"
+              ]
+            },
+            "default": [
+              "twitter",
+              "reddit"
+            ],
+            "description": "Data sources to query"
+          },
+          "window_minutes": {
+            "type": "integer",
+            "default": 60,
+            "minimum": 5,
+            "maximum": 1440,
+            "description": "Time window for sentiment history"
+          }
+        },
+        "required": [
+          "symbols"
+        ]
+      },
+      "price": "$0.01",
+      "free_tier": false,
+      "endpoint": "https://alpha-sentinel-mcp.vercel.app/tools/aggregate_sentiment"
+    },
+    {
+      "name": "calculate_risk_score",
+      "description": "Calculate multi-factor risk assessment for cryptocurrencies.\n        \nCombines volatility, liquidity, market cap tier, and Bitcoin correlation into\na comprehensive risk score (0-1 scale) with actionable recommendations.\n\n**Use Case:** Assess position sizing and stop-loss levels.\n",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "symbols": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of crypto symbols to assess",
+            "minItems": 1
+          },
+          "include_factors": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "volatility",
+                "liquidity",
+                "correlation"
+              ]
+            },
+            "default": [
+              "volatility",
+              "liquidity",
+              "correlation"
+            ],
+            "description": "Risk factors to analyze"
+          }
+        },
+        "required": [
+          "symbols"
+        ]
+      },
+      "price": "$0.03",
+      "free_tier": false,
+      "endpoint": "https://alpha-sentinel-mcp.vercel.app/tools/calculate_risk_score"
+    },
+    {
+      "name": "generate_market_report",
+      "description": "Generate comprehensive market intelligence report.\n        \nSynthesizes price, volatility, sentiment, and risk data into actionable insights.\nPerfect for daily briefings or strategic planning.\n\n**Use Case:** End-of-day summary or pre-trade due diligence.\n\n**Cost:** $0.15 USD per ",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "report_type": {
+            "type": "string",
+            "enum": [
+              "daily",
+              "weekly",
+              "monthly"
+            ],
+            "default": "daily",
+            "description": "Type of report to generate"
+          },
+          "symbols": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [
+              "bitcoin",
+              "ethereum"
+            ],
+            "description": "Cryptocurrencies to include"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "json",
+              "pdf"
+            ],
+            "default": "json",
+            "description": "Output format"
+          }
+        },
+        "required": []
+      },
+      "price": "$0.15",
+      "free_tier": false,
+      "endpoint": "https://alpha-sentinel-mcp.vercel.app/tools/generate_market_report"
+    }
+  ],
+  "count": 5,
+  "http_base": "https://alpha-sentinel-mcp.vercel.app/tools"
+}

@@ -46,6 +46,7 @@ def well_known_x402() -> dict[str, Any]:
         **({"ownershipProofs": ownership_proofs()} if ownership_proofs() else {}),
         "mcp": {
             "manifest": f"{_base()}/.well-known/mcp",
+            "manifest_json": f"{_base()}/.well-known/mcp.json",
             "streamable_http": f"{_base()}/mcp",
             "url": f"{_base()}/mcp",
         },
@@ -54,6 +55,7 @@ def well_known_x402() -> dict[str, Any]:
             "jsonrpc": f"{_base()}/a2a",
         },
         "docs": f"{_base()}/llms.txt",
+        "playbooks": f"{_base()}/docs",
         "agentcash": {
             "discover": f"{_base()}/.well-known/x402",
             "payment": "x402",
@@ -192,13 +194,72 @@ def agent_card() -> dict[str, Any]:
 
 
 def mcp_well_known() -> dict[str, Any]:
-    """Remote MCP registration document (Streamable HTTP, not stdio-only)."""
+    """Remote MCP registration document (Streamable HTTP + Protocol SEO manifest)."""
     from app.tools_registry import TOOL_PRICES
     from app.tools_registry import TOOL_SPECS as specs
 
     base = _base()
     http_url = f"{base}/mcp"
+    network = settlement_network()
     return {
+        "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+        "schema_version": "1.0",
+        "protocolVersion": "2024-11-05",
+        "name": "io.github.kwizzlesurp10-ctrl/alpha-sentinel-mcp",
+        "title": "Alpha Sentinel — Predictive Alpha & On-chain Market Intelligence",
+        "version": "0.2.0",
+        "description": (
+            "Autonomous Trading Data & On-chain Market Intelligence MCP Server. "
+            "Provides statistical Z-score volatility alerts, multi-source sentiment "
+            "aggregation, multi-factor crypto risk scoring, and executive market "
+            "intelligence reports via x402 Monetized API (USDC on Base)."
+        ),
+        "keywords": [
+            "Predictive Alpha",
+            "On-chain Market Intelligence",
+            "x402 Monetized API",
+            "Autonomous Trading Data",
+            "Crypto Volatility Alerts",
+            "Sentiment Aggregation",
+            "MCP Server",
+            "AgentCash",
+            "Base USDC",
+        ],
+        "homepage": base,
+        "documentation": f"{base}/docs",
+        "llms_txt": f"{base}/llms.txt",
+        "playbooks": [
+            {
+                "slug": "automate-volatility-alerts",
+                "title": "How to Automate Crypto Volatility Alerts for Trading Bots",
+                "url": f"{base}/docs/automate-volatility-alerts",
+            },
+            {
+                "slug": "integrate-predictive-alpha",
+                "title": "Integrating Predictive Alpha Feeds via MCP & x402",
+                "url": f"{base}/docs/integrate-predictive-alpha",
+            },
+            {
+                "slug": "reduce-slippage-sentiment",
+                "title": "Reducing Slippage with Real-Time Sentiment Aggregation",
+                "url": f"{base}/docs/reduce-slippage-sentiment",
+            },
+        ],
+        "x402": {
+            "version": 2,
+            "network": network,
+            "asset": "USDC",
+            "discovery": f"{base}/.well-known/x402",
+            "payment_header": "PAYMENT-SIGNATURE",
+            "challenge_header": "PAYMENT-REQUIRED",
+            "receipt_header": "PAYMENT-RESPONSE",
+        },
+        "remotes": [
+            {
+                "type": "streamable-http",
+                "url": http_url,
+            }
+        ],
         "mcpServers": {
             "alpha-sentinel": {
                 "url": http_url,
@@ -206,7 +267,10 @@ def mcp_well_known() -> dict[str, Any]:
                 "transport": "streamable-http",
                 "command": "python",
                 "args": ["run_stdio.py"],
-                "description": "Alpha Sentinel Market Intelligence",
+                "description": (
+                    "Alpha Sentinel — Predictive Alpha & On-chain Market Intelligence "
+                    "(x402 Monetized API for Autonomous Trading Data)"
+                ),
                 "tools": specs,
             }
         },
@@ -217,11 +281,93 @@ def mcp_well_known() -> dict[str, Any]:
             {
                 "name": t["name"],
                 "description": t["description"][:280],
+                "inputSchema": t["inputSchema"],
                 "price": TOOL_PRICES.get(t["name"], "$0.01"),
                 "free_tier": t["tier_access"]["free"],
+                "endpoint": f"{base}/tools/{t['name']}",
             }
             for t in specs
         ],
         "count": TOOL_COUNT,
         "http_base": f"{base}/tools",
     }
+
+
+def robots_txt() -> str:
+    """Protocol SEO robots.txt explicitly allowing x402, AI/MCP, and search crawlers."""
+    base = _base()
+    return "\n".join(
+        [
+            "# Alpha Sentinel Market Intelligence — Protocol SEO & Agent Discovery",
+            "User-agent: x402",
+            "User-agent: x402-bot",
+            "User-agent: x402scan",
+            "User-agent: AgentCash",
+            "Allow: /",
+            "Allow: /.well-known/mcp.json",
+            "Allow: /.well-known/mcp",
+            "Allow: /.well-known/x402",
+            "Allow: /.well-known/agent-card.json",
+            "Allow: /docs",
+            "Allow: /llms.txt",
+            "",
+            "User-agent: Googlebot",
+            "User-agent: Google-Extended",
+            "Allow: /",
+            "Allow: /.well-known/mcp.json",
+            "Allow: /.well-known/mcp",
+            "Allow: /.well-known/x402",
+            "Allow: /.well-known/agent-card.json",
+            "Allow: /docs",
+            "Allow: /llms.txt",
+            "",
+            "User-agent: GPTBot",
+            "User-agent: ClaudeBot",
+            "User-agent: PerplexityBot",
+            "Allow: /",
+            "Allow: /.well-known/mcp.json",
+            "Allow: /.well-known/mcp",
+            "Allow: /.well-known/x402",
+            "Allow: /.well-known/agent-card.json",
+            "Allow: /docs",
+            "Allow: /llms.txt",
+            "",
+            "User-agent: *",
+            "Allow: /",
+            "Allow: /.well-known/mcp.json",
+            "Allow: /.well-known/mcp",
+            "Allow: /.well-known/x402",
+            "Allow: /.well-known/agent-card.json",
+            "Allow: /docs",
+            "Allow: /llms.txt",
+            "",
+            f"Sitemap: {base}/sitemap.xml",
+            "",
+        ]
+    )
+
+
+def sitemap_xml() -> str:
+    """XML Sitemap for Search Engines and Protocol Indexers."""
+    base = _base()
+    paths = [
+        ("/", "1.0", "daily"),
+        ("/docs", "0.9", "weekly"),
+        ("/docs/automate-volatility-alerts", "0.8", "weekly"),
+        ("/docs/integrate-predictive-alpha", "0.8", "weekly"),
+        ("/docs/reduce-slippage-sentiment", "0.8", "weekly"),
+        ("/.well-known/mcp.json", "0.9", "daily"),
+        ("/.well-known/x402", "0.9", "daily"),
+        ("/llms.txt", "0.8", "daily"),
+    ]
+    url_entries = "\n".join(
+        f"  <url>\n    <loc>{base}{path}</loc>\n    <changefreq>{freq}</changefreq>\n    <priority>{prio}</priority>\n  </url>"
+        for path, prio, freq in paths
+    )
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{url_entries}\n"
+        "</urlset>\n"
+    )
+
