@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=(".env", ".env.local"), extra="ignore")
 
     # Drop empty-string env vars so field defaults apply (Vercel often sets "").
+    @model_validator(mode="after")
+    def force_bazaar_branding(self) -> "Settings":
+        self.bazaar_service_name = "Alpha Sentinel Market Intelligence"
+        self.bazaar_service_tags = "base,intelligence,crypto,market,x402,mcp"
+        return self
+
     @model_validator(mode="before")
     @classmethod
     def drop_empty_strings(cls, data: Any) -> Any:
