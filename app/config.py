@@ -20,7 +20,7 @@ class Settings(BaseSettings):
 
     # Drop empty-string env vars so field defaults apply (Vercel often sets "").
     @model_validator(mode="after")
-    def force_bazaar_branding(self) -> "Settings":
+    def force_bazaar_branding(self) -> Settings:
         # CDP Bazaar: serviceName max 32 chars (longer names truncate at index);
         # tags max 5. Keep the Alpha Sentinel prefix so we are not shadowed.
         self.bazaar_service_name = "Alpha Sentinel Volatility"

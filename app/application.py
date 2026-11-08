@@ -272,7 +272,7 @@ async def playbooks_index():
 @api.get("/docs/{playbook}", response_class=HTMLResponse, include_in_schema=False)
 async def playbook_article(playbook: str):
     """Serve an individual technical playbook article."""
-    slug = playbook[:-5] if playbook.endswith(".html") else playbook
+    slug = playbook.removesuffix(".html")
     if slug in ("index", ""):
         return await playbooks_index()
     if slug not in PLAYBOOK_SLUGS:
