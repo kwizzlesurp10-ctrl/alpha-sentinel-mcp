@@ -454,9 +454,7 @@ async def http_fetch_price(request: Request):
     if not symbol:
         raise HTTPException(status_code=400, detail="symbol is required")
     try:
-        result = await fetch_price_endpoint(str(symbol))
-        await commerce_layer.consume_call("anonymous", cost_usd=0.0)
-        return result
+        return await fetch_price_endpoint(str(symbol))
     except Exception as e:
         logger.error("Price fetch failed: %s", e)
         raise HTTPException(status_code=502, detail=str(e)) from e

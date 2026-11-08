@@ -21,8 +21,10 @@ class Settings(BaseSettings):
     # Drop empty-string env vars so field defaults apply (Vercel often sets "").
     @model_validator(mode="after")
     def force_bazaar_branding(self) -> "Settings":
-        self.bazaar_service_name = "Alpha Sentinel Market Intelligence"
-        self.bazaar_service_tags = "base,intelligence,crypto,market,x402,mcp"
+        # CDP Bazaar: serviceName max 32 chars (longer names truncate at index);
+        # tags max 5. Keep the Alpha Sentinel prefix so we are not shadowed.
+        self.bazaar_service_name = "Alpha Sentinel Volatility"
+        self.bazaar_service_tags = "volatility,crypto,intelligence,x402,mcp"
         return self
 
     @model_validator(mode="before")
@@ -156,8 +158,8 @@ class Settings(BaseSettings):
     x402_facilitator_url: str = "https://x402.org/facilitator"
 
     bazaar_discoverable: bool = True
-    bazaar_service_name: str = "Alpha Sentinel Market Intelligence"
-    bazaar_service_tags: str = "base,intelligence,crypto,market,x402,mcp"
+    bazaar_service_name: str = "Alpha Sentinel Volatility"
+    bazaar_service_tags: str = "volatility,crypto,intelligence,x402,mcp"
 
     stripe_secret_key: str | None = None
     stripe_webhook_secret: str | None = None

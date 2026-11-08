@@ -21,18 +21,14 @@ mcp_app = FastMCP(
 
 ## Available Tools
 
-### Free Tier (500 calls/month)
-- **fetch_price**: Real-time price lookups ($0.005 value)
-
-### Pro Tier / Tool Credits Required
+### Paid tools (x402 USDC on Base)
+- **fetch_price**: Real-time price lookups ($0.005)
 - **analyze_volatility**: Z-score anomaly detection ($0.02)
-- **aggregate_sentiment**: Social sentiment aggregation ($0.01)  
+- **aggregate_sentiment**: Social sentiment aggregation ($0.01)
 - **calculate_risk_score**: Multi-factor risk assessment ($0.03)
 - **generate_market_report**: Comprehensive intelligence reports ($0.15)
 
-## Pricing Strategy
-Based on x402 market research - priced below median ($0.014) to encourage adoption.
-Free tier included to build trust and demonstrate value.""",
+Unpaid previews: GET /tools/{name}/sample (rate-limited).""",
 )
 
 
@@ -44,7 +40,7 @@ Free tier included to build trust and demonstrate value.""",
 async def fetch_price(symbol: str) -> str:
     """Fetch real-time cryptocurrency price from CoinGecko API.
     
-    FREE TIER TOOL - No payment required!
+    PAID - $0.005 per call (x402 USDC). Unpaid preview: /tools/fetch_price/sample
     
     Args:
         symbol: Cryptocurrency symbol (e.g., 'btc', 'eth', 'sol')
