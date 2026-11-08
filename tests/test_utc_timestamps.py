@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import pathlib
 import re
+from datetime import datetime
+
+import pytest
 
 from app.commerce import CommerceLayer
 
@@ -17,10 +20,12 @@ def test_no_utcnow_in_app():
     assert hits == []
 
 
-def test_quota_reset_is_aware_utc():
+@pytest.mark.asyncio
+async def test_quota_reset_is_aware_utc():
     from app.config import settings
 
-    q = CommerceLayer(settings).get_quota("agent-x")
+    q = await CommerceLayer(settings).get_quota("agent-x")
     assert q.reset_at is not None
-    assert q.reset_at.tzinfo is not None
-    assert q.reset_at.utcoffset().total_seconds() == 0
+    reset_at = datetime.fromisoformat(q.reset_at)
+    assert reset_at.tzinfo is not None
+    assert reset_at.utcoffset().total_seconds() == 0

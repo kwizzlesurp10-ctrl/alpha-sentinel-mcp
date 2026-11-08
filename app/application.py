@@ -272,7 +272,7 @@ async def playbooks_index():
 @api.get("/docs/{playbook}", response_class=HTMLResponse, include_in_schema=False)
 async def playbook_article(playbook: str):
     """Serve an individual technical playbook article."""
-    slug = playbook[:-5] if playbook.endswith(".html") else playbook
+    slug = playbook.removesuffix(".html")
     if slug in ("index", ""):
         return await playbooks_index()
     if slug not in PLAYBOOK_SLUGS:
@@ -519,9 +519,7 @@ async def http_fetch_price(request: Request):
     if not symbol:
         raise HTTPException(status_code=400, detail="symbol is required")
     try:
-        result = await fetch_price_endpoint(str(symbol))
-        await commerce_layer.consume_call("anonymous", cost_usd=0.0)
-        return result
+        return await fetch_price_endpoint(str(symbol))
     except Exception as e:
         logger.error("Price fetch failed: %s", e)
         raise HTTPException(status_code=502, detail=str(e)) from e

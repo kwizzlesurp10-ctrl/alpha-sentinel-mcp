@@ -272,10 +272,10 @@ Example composite: Buy raw prices from 3 upstream → aggregate → resell as "P
 ## 📈 Bazaar Discovery
 
 Listed on CDP Bazaar with:
-- Service name: `Alpha Sentinel Market Intelligence`
-- Tags: `base,intelligence,crypto,market,x402,mcp`
+- Service name: `Alpha Sentinel Volatility` (CDP Bazaar ≤32 chars)
+- Tags: `volatility,crypto,intelligence,x402,mcp` (max 5)
 - Ownership proof: signed with receive address
-- Catalog URL: `https://alpha-sentinel-mcp.onrender.com/.well-known/x402`
+- Catalog URL: `https://alpha-sentinel-mcp.vercel.app/.well-known/x402`
 
 ## 🎓 Documentation
 

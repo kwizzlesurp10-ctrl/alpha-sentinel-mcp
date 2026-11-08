@@ -66,11 +66,11 @@ def well_known_x402() -> dict[str, Any]:
 
 def llms_txt() -> str:
     lines = [
-        "# Alpha Sentinel Market Intelligence MCP Server",
+        "# Alpha Sentinel Volatility MCP Server",
         "",
         "> Pay-per-call HTTP APIs and MCP tools over x402: USDC on Base, no API key, no signup.",
         "",
-        "## Available Paid and Free Resources",
+        "## Paid Resources",
         "",
     ]
     for r in paid_resources():
@@ -111,7 +111,7 @@ def agent_card() -> dict[str, Any]:
     ]
 
     return {
-        "name": "Alpha Sentinel Market Intelligence (x402)",
+        "name": "Alpha Sentinel Volatility",
         "description": (
             "Real-time crypto market monitoring, statistical volatility alerts, "
             "and sentiment analysis via x402 MCP / AgentCash pay-per-call."

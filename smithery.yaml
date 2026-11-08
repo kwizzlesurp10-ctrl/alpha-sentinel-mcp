@@ -1,5 +1,5 @@
 name: alpha-sentinel-mcp
-title: Alpha Sentinel Market Intelligence
+title: Alpha Sentinel Volatility
 description: >
   Pay-per-call crypto market intelligence MCP for A2A agents.
   Streamable HTTP at /mcp. x402 / AgentCash USDC on Base.

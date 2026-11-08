@@ -22,8 +22,8 @@ ADVERTISED = {
     "url": "https://alpha-sentinel-mcp.vercel.app/tools/fetch_price",
     "description": "Fetch price",
     "mimeType": "application/json",
-    "serviceName": "Alpha Sentinel Market Intelligen",
-    "tags": ["base", "intelligence"],
+    "serviceName": "Alpha Sentinel Volatility",
+    "tags": ["volatility", "crypto"],
 }
 BAZAAR = {"info": {"input": {"type": "http", "method": "POST"}}, "schema": {"type": "object"}}
 
@@ -153,3 +153,14 @@ async def test_verify_and_settle_applies_backfill(monkeypatch):
     assert result["discovery_backfilled"] == {"resource": True, "bazaar": True}
     assert result["bazaar_indexing"]["status"] == "processing"
     assert calls and calls[0][1] is not None
+
+
+def test_bazaar_branding_fits_cdp_limits():
+    from app.config import settings
+
+    assert settings.bazaar_service_name.startswith("Alpha Sentinel")
+    assert len(settings.bazaar_service_name) <= 32
+    tags = [t.strip() for t in settings.bazaar_service_tags.split(",") if t.strip()]
+    assert 1 <= len(tags) <= 5
+    assert "volatility" in tags
+    assert "crypto" in tags
