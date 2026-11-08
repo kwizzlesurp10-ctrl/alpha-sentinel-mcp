@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alpha Sentinel Documentation &amp; AI Agent Playbooks — Predictive Alpha, x402 API &amp; Autonomous Trading Data</title>
+    <meta name="description" content="Developer documentation and long-tail implementation playbooks for Alpha Sentinel Market Intelligence. Connect autonomous trading agents via MCP, A2A, and x402 micropayments on Base.">
+    <meta name="keywords" content="Alpha Sentinel, Predictive Alpha, On-chain Market Intelligence, x402 Monetized API, Autonomous Trading Data, MCP server, A2A protocol, Base USDC micropayments, volatility alerts, sentiment analysis, risk scoring">
+    <link rel="canonical" href="https://alpha-sentinel-mcp.vercel.app/docs">
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "CollectionPage",
+      "name": "Alpha Sentinel Documentation & Use-Case Playbooks Hub",
+      "description": "Technical guides, architectural blueprints, and integration playbooks for Alpha Sentinel's Predictive Alpha, On-chain Market Intelligence, x402 Monetized API, and Autonomous Trading Data.",
+      "url": "https://alpha-sentinel-mcp.vercel.app/docs",
+      "publisher": {
+        "@type": "Organization",
+        "name": "Alpha Sentinel (SEVTECH)",
+        "url": "https://alpha-sentinel-mcp.vercel.app/"
+      },
+      "hasPart": [
+        {
+          "@type": "TechArticle",
+          "headline": "How to automate volatility alerts using Alpha Sentinel",
+          "url": "https://alpha-sentinel-mcp.vercel.app/docs/automate-volatility-alerts",
+          "description": "Deep-dive guide on polling and scheduling Z-score volatility anomaly detection with x402 micropayments on Base and automated circuit breakers."
+        },
+        {
+          "@type": "TechArticle",
+          "headline": "Integrating predictive alpha into an autonomous trading agent",
+          "url": "https://alpha-sentinel-mcp.vercel.app/docs/integrate-predictive-alpha",
+          "description": "End-to-end architecture for LangGraph, Claude MCP, and A2A trading agents combining price feeds, volatility, multi-factor risk scores, and x402 USDC settlement."
+        },
+        {
+          "@type": "TechArticle",
+          "headline": "Reducing slippage with real-time sentiment analysis",
+          "url": "https://alpha-sentinel-mcp.vercel.app/docs/reduce-slippage-sentiment",
+          "description": "Execution playbook for minimizing DEX and CEX slippage by combining multi-source sentiment aggregation with volatility and liquidity risk scoring before order routing."
+        }
+      ]
+    }
+    </script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-light: #818cf8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --code-bg: #090d16;
+            --border: #334155;
+            --text: #f1f5f9;
+            --muted: #94a3b8;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            line-height: 1.7;
+        }
+        a { color: var(--primary-light); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .top-nav {
+            background: rgba(15, 23, 42, 0.95);
+            border-bottom: 1px solid var(--border);
+            padding: 14px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(8px);
+        }
+        .top-nav-inner {
+            max-width: 1180px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 14px;
+        }
+        .brand {
+            font-weight: 700;
+            font-size: 1.15rem;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .nav-links {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+            font-size: 0.92rem;
+        }
+        .nav-links a {
+            color: var(--muted);
+            font-weight: 500;
+        }
+        .nav-links a.active, .nav-links a:hover {
+            color: var(--text);
+        }
+        .container {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 40px 24px 80px;
+        }
+        .hero {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.16), rgba(16, 185, 129, 0.08));
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 38px 34px;
+            margin-bottom: 40px;
+        }
+        .badge-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .badge-primary { background: rgba(99, 102, 241, 0.2); color: var(--primary-light); border: 1px solid rgba(99, 102, 241, 0.4); }
+        .badge-success { background: rgba(16, 185, 129, 0.2); color: var(--success); border: 1px solid rgba(16, 185, 129, 0.4); }
+        .badge-warning { background: rgba(245, 158, 11, 0.2); color: var(--warning); border: 1px solid rgba(245, 158, 11, 0.4); }
+        h1 { font-size: 2.4rem; margin: 0 0 14px; line-height: 1.25; }
+        h2 { font-size: 1.65rem; margin-top: 44px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        h3 { font-size: 1.22rem; margin-top: 26px; margin-bottom: 10px; color: #e2e8f0; }
+        p { margin: 0 0 16px; color: #cbd5e1; }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+            gap: 24px;
+            margin: 28px 0 44px;
+        }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 26px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.15s ease, border-color 0.15s ease;
+        }
+        .card:hover {
+            border-color: var(--primary-light);
+            transform: translateY(-2px);
+        }
+        .card h3 { margin-top: 10px; color: var(--text); }
+        .card-footer {
+            margin-top: 20px;
+            padding-top: 14px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.92rem;
+            text-decoration: none;
+        }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: #4f46e5; text-decoration: none; }
+        .btn-outline { border: 1px solid var(--primary-light); color: var(--primary-light); }
+        .btn-outline:hover { background: rgba(99, 102, 241, 0.12); text-decoration: none; }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.86rem;
+            line-height: 1.55;
+            color: #e2e8f0;
+            margin: 16px 0 24px;
+        }
+        code {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            background: rgba(15, 23, 42, 0.7);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.88em;
+            color: #a5b4fc;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0 32px;
+            background: var(--card-bg);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        th, td {
+            padding: 13px 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.93rem;
+        }
+        th { background: rgba(15, 23, 42, 0.6); color: #f8fafc; font-weight: 600; }
+        td { color: #cbd5e1; }
+        footer {
+            margin-top: 64px;
+            padding-top: 28px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 16px;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="top-nav" aria-label="Primary Documentation Navigation">
+        <div class="top-nav-inner">
+            <a href="/" class="brand">🛡️ Alpha Sentinel <span style="color: var(--muted); font-weight: 400;">/ Docs</span></a>
+            <div class="nav-links">
+                <a href="/">Mission Control</a>
+                <a href="/docs" class="active">Documentation Hub</a>
+                <a href="/docs/automate-volatility-alerts">Playbook 1: Volatility Alerts</a>
+                <a href="/docs/integrate-predictive-alpha">Playbook 2: Predictive Alpha</a>
+                <a href="/docs/reduce-slippage-sentiment">Playbook 3: Slippage &amp; Sentiment</a>
+                <a href="/openapi">Interactive OpenAPI</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container">
+        <section class="hero">
+            <div class="badge-row">
+                <span class="badge badge-primary">Predictive Alpha</span>
+                <span class="badge badge-success">On-Chain Market Intelligence</span>
+                <span class="badge badge-warning">x402 Monetized API (Base)</span>
+                <span class="badge badge-primary">Autonomous Trading Data</span>
+            </div>
+            <h1>Alpha Sentinel Documentation &amp; Use-Case Playbooks Hub</h1>
+            <p>
+                Alpha Sentinel is an autonomous-agent-ready <strong>On-Chain Market Intelligence</strong> server exposing statistical volatility detection, social sentiment aggregation, multi-factor portfolio risk scoring, and executive market synthesis over <strong>Model Context Protocol (MCP)</strong>, <strong>Agent-to-Agent (A2A) JSON-RPC</strong>, and <strong>x402 pay-per-call HTTP</strong> settled natively in USDC on Base (<code>eip155:8453</code>).
+            </p>
+            <p style="margin-bottom: 24px;">
+                Zero API keys, zero OAuth handshakes, and zero monthly lock-in required for autonomous agents: discover endpoints via <code>/.well-known/x402</code> or <code>/.well-known/mcp.json</code>, inspect rate-limited previews at <code>/tools/{tool}/sample</code>, and settle per-request micropayments via <code>PAYMENT-SIGNATURE</code> or AgentCash.
+            </p>
+            <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+                <a href="/openapi" class="btn btn-primary">Explore Interactive Swagger UI (/openapi)</a>
+                <a href="/.well-known/x402" class="btn btn-outline">Inspect /.well-known/x402 Catalog</a>
+                <a href="/llms.txt" class="btn btn-outline">Read /llms.txt Agent Manifest</a>
+            </div>
+        </section>
+
+        <h2>Long-Tail Technical Playbooks</h2>
+        <p>
+            Each engineering playbook below provides production-ready architecture diagrams, mathematical specifications, MCP JSON-RPC payloads, and Python / TypeScript x402 payment loop implementations tailored for autonomous DeFi and quantitative execution agents.
+        </p>
+
+        <div class="grid-3">
+            <article class="card">
+                <div>
+                    <span class="badge badge-warning">Playbook 01 • Risk &amp; Monitoring</span>
+                    <h3><a href="/docs/automate-volatility-alerts">How to automate volatility alerts using Alpha Sentinel</a></h3>
+                    <p>
+                        Configure high-frequency or cron-scheduled statistical Z-score polling with <code>analyze_volatility</code> (configurable <code>window_minutes</code> and <code>z_threshold</code>), classify <code>NORMAL</code>, <code>MODERATE</code>, <code>HIGH</code>, and <code>CRITICAL</code> standard deviation spikes, settle $0.02 USDC x402 challenges on Base, and trigger automated circuit breakers or Discord/Slack/Telegram webhooks.
+                    </p>
+                </div>
+                <div class="card-footer">
+                    <span>Tool: <code>analyze_volatility</code> ($0.02)</span>
+                    <a href="/docs/automate-volatility-alerts">Read Playbook →</a>
+                </div>
+            </article>
+
+            <article class="card">
+                <div>
+                    <span class="badge badge-primary">Playbook 02 • Agent Architecture</span>
+                    <h3><a href="/docs/integrate-predictive-alpha">Integrating predictive alpha into an autonomous trading agent</a></h3>
+                    <p>
+                        End-to-end blueprint for LangGraph, Claude MCP, Coinbase AgentKit / AgentCash, and A2A agents. Discover capabilities dynamically, orchestrate <code>fetch_price</code>, <code>analyze_volatility</code>, <code>calculate_risk_score</code>, and <code>generate_market_report</code>, compute Kelly-adjusted position sizing from 4-factor risk weights, and manage on-chain USDC treasury budgets.
+                    </p>
+                </div>
+                <div class="card-footer">
+                    <span>Tools: Full 5-Tool Pipeline</span>
+                    <a href="/docs/integrate-predictive-alpha">Read Playbook →</a>
+                </div>
+            </article>
+
+            <article class="card">
+                <div>
+                    <span class="badge badge-success">Playbook 03 • Trade Execution</span>
+                    <h3><a href="/docs/reduce-slippage-sentiment">Reducing slippage with real-time sentiment analysis</a></h3>
+                    <p>
+                        Prevent toxic order flow and liquidity thinning losses before routing large swaps. Combine <code>aggregate_sentiment</code> (Twitter/X, Reddit, Telegram, News, Fear &amp; Greed macro proxy) with <code>analyze_volatility</code> and <code>calculate_risk_score</code> to dynamically switch between immediate execution, TWAP/VWAP order splitting, or execution delay.
+                    </p>
+                </div>
+                <div class="card-footer">
+                    <span>Tool: <code>aggregate_sentiment</code> ($0.01)</span>
+                    <a href="/docs/reduce-slippage-sentiment">Read Playbook →</a>
+                </div>
+            </article>
+        </div>
+
+        <h2>System Architecture &amp; Protocol Surface</h2>
+        <p>
+            Alpha Sentinel unifies three standardized machine-to-machine commerce and tool-calling protocols over a single deterministic intelligence engine:
+        </p>
+        <pre><code>┌──────────────────────────────────────────────────────────────────────────────────┐
+│                     AUTONOMOUS TRADING AGENTS &amp; LLM CLIENTS                      │
+│   Claude / Cursor MCP  │  LangGraph / OpenAI  │  Coinbase AgentKit / AgentCash   │
+└────────────┬───────────────────────┬──────────────────────────┬──────────────────┘
+             │                       │                          │
+   Streamable HTTP JSON-RPC    A2A v1.0 JSON-RPC        HTTP REST + x402 Header
+   POST /mcp                   POST /a2a                POST /tools/{tool_name}
+   _meta["x402/payment"]       x402.payment.payload     PAYMENT-SIGNATURE / X-PAYMENT
+             │                       │                          │
+             ▼                       ▼                          ▼
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                    ALPHA SENTINEL x402 COMMERCE &amp; GATEWAY LAYER                  │
+│  • Challenge Generator (HTTP 402 + PAYMENT-REQUIRED header + accepts[] array)    │
+│  • Coinbase CDP Facilitator Verify &amp; Settle (Base Mainnet eip155:8453 USDC)      │
+│  • Upstash Redis Idempotency &amp; Replay Guard (SET NX, 24h TTL)                    │
+└────────────────────────────────────┬─────────────────────────────────────────────┘
+                                     │
+                                     ▼
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│                   PREDICTIVE ALPHA &amp; MARKET INTELLIGENCE ENGINE                  │
+│  1. fetch_price ($0.005 / Free MCP)     4. calculate_risk_score ($0.03 USDC)     │
+│  2. analyze_volatility ($0.02 USDC)     5. generate_market_report ($0.15 USDC)   │
+│  3. aggregate_sentiment ($0.01 USDC)    + Rate-Limited /tools/{name}/sample      │
+└──────────────────────────────────────────────────────────────────────────────────┘</code></pre>
+
+        <h2>Intelligence Tool Catalog &amp; x402 Pricing Matrix</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Tool Name</th>
+                    <th>Canonical HTTP Endpoint</th>
+                    <th>Price (USDC on Base)</th>
+                    <th>Atomic Units (6 dec)</th>
+                    <th>Primary Output &amp; Signal</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>fetch_price</code></td>
+                    <td><code>POST /tools/fetch_price</code></td>
+                    <td><strong>$0.005</strong> (Free via MCP)</td>
+                    <td><code>5000</code></td>
+                    <td>Spot price (USD), 24h delta %, 24h volume USD, UTC timestamp.</td>
+                </tr>
+                <tr>
+                    <td><code>analyze_volatility</code></td>
+                    <td><code>POST /tools/analyze_volatility</code></td>
+                    <td><strong>$0.02</strong></td>
+                    <td><code>20000</code></td>
+                    <td>Rolling Z-score array, anomaly indices, mean/std_dev, <code>NORMAL</code>/<code>MODERATE</code>/<code>HIGH</code>/<code>CRITICAL</code> alert level.</td>
+                </tr>
+                <tr>
+                    <td><code>aggregate_sentiment</code></td>
+                    <td><code>POST /tools/aggregate_sentiment</code></td>
+                    <td><strong>$0.01</strong></td>
+                    <td><code>10000</code></td>
+                    <td>Weighted sentiment score (<code>-1.0</code> to <code>+1.0</code>), category (<code>bullish</code>/<code>neutral</code>/<code>bearish</code>), Fear &amp; Greed index.</td>
+                </tr>
+                <tr>
+                    <td><code>calculate_risk_score</code></td>
+                    <td><code>POST /tools/calculate_risk_score</code></td>
+                    <td><strong>$0.03</strong></td>
+                    <td><code>30000</code></td>
+                    <td>Composite risk score (<code>0.0</code>–<code>1.0</code>) across Volatility (40%), Liquidity (25%), Market Cap (20%), BTC Correlation (15%).</td>
+                </tr>
+                <tr>
+                    <td><code>generate_market_report</code></td>
+                    <td><code>POST /tools/generate_market_report</code></td>
+                    <td><strong>$0.15</strong></td>
+                    <td><code>150000</code></td>
+                    <td>Daily/weekly/monthly executive synthesis combining price, volatility, sentiment, and multi-factor risk recommendations.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>Quick Reference: Discovery &amp; Protocol Endpoints</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Protocol Surface</th>
+                    <th>Endpoint Path</th>
+                    <th>Method</th>
+                    <th>Purpose</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>MCP Discovery</strong></td>
+                    <td><a href="/.well-known/mcp.json"><code>/.well-known/mcp.json</code></a></td>
+                    <td><code>GET</code></td>
+                    <td>Machine-readable Streamable HTTP MCP registration manifest and tool schemas.</td>
+                </tr>
+                <tr>
+                    <td><strong>MCP JSON-RPC</strong></td>
+                    <td><code>/mcp</code></td>
+                    <td><code>POST</code></td>
+                    <td>Streamable HTTP JSON-RPC 2.0 endpoint supporting <code>initialize</code>, <code>tools/list</code>, and <code>tools/call</code>.</td>
+                </tr>
+                <tr>
+                    <td><strong>A2A Agent Card</strong></td>
+                    <td><a href="/.well-known/agent-card.json"><code>/.well-known/agent-card.json</code></a></td>
+                    <td><code>GET</code></td>
+                    <td>A2A Protocol v1.0 Agent Card advertising skills, input/output modes, and <code>a2a-x402</code> extensions.</td>
+                </tr>
+                <tr>
+                    <td><strong>A2A JSON-RPC</strong></td>
+                    <td><code>/a2a</code></td>
+                    <td><code>POST</code></td>
+                    <td>A2A JSON-RPC task endpoint supporting <code>message/send</code> and <code>tasks/get</code> with x402 settlement.</td>
+                </tr>
+                <tr>
+                    <td><strong>x402 Discovery</strong></td>
+                    <td><a href="/.well-known/x402"><code>/.well-known/x402</code></a></td>
+                    <td><code>GET</code></td>
+                    <td>Canonical x402 v2 &amp; AgentCash discovery manifest listing all priced endpoints, Base network, and headers.</td>
+                </tr>
+                <tr>
+                    <td><strong>Interactive OpenAPI</strong></td>
+                    <td><a href="/openapi"><code>/openapi</code></a> &amp; <a href="/openapi.json"><code>/openapi.json</code></a></td>
+                    <td><code>GET</code></td>
+                    <td>Swagger UI interactive API explorer and OpenAPI 3.1.0 specification with <code>x-payment-info</code> annotations.</td>
+                </tr>
+                <tr>
+                    <td><strong>Free Tool Previews</strong></td>
+                    <td><code>/tools/{tool_name}/sample</code></td>
+                    <td><code>GET / POST</code></td>
+                    <td>Rate-limited live sample output for any intelligence tool prior to committing USDC micropayments.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>1. Connect via MCP JSON-RPC (<code>POST /mcp</code>)</h3>
+        <pre><code>curl -sX POST https://alpha-sentinel-mcp.vercel.app/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "init-1",
+    "method": "tools/list",
+    "params": {}
+  }' | jq .</code></pre>
+
+        <h3>2. Discover &amp; Call via AgentCash CLI (x402 on Base)</h3>
+        <pre><code># 1. Discover all paid tools and USDC pricing on Base (eip155:8453)
+npx agentcash@latest discover https://alpha-sentinel-mcp.vercel.app
+
+# 2. Execute a paid call with automatic 402 challenge signing &amp; settlement
+npx agentcash@latest fetch https://alpha-sentinel-mcp.vercel.app/tools/analyze_volatility \
+  --method POST \
+  --body '{"symbol":"btc","window_minutes":60,"z_threshold":2.0}'</code></pre>
+
+        <h3>3. Call via A2A Protocol (<code>POST /a2a</code>)</h3>
+        <pre><code>curl -sX POST https://alpha-sentinel-mcp.vercel.app/a2a \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "a2a-1",
+    "method": "message/send",
+    "params": {
+      "skill": "fetch_price",
+      "symbol": "eth"
+    }
+  }' | jq .</code></pre>
+
+        <footer>
+            <div>
+                <strong>Alpha Sentinel Market Intelligence</strong> • Built on FastAPI, MCP &amp; Coinbase x402 (Base Mainnet <code>eip155:8453</code>)
+            </div>
+            <div>
+                <a href="/">Home</a> •
+                <a href="/docs/automate-volatility-alerts">Volatility Playbook</a> •
+                <a href="/docs/integrate-predictive-alpha">Predictive Alpha Playbook</a> •
+                <a href="/docs/reduce-slippage-sentiment">Slippage Playbook</a> •
+                <a href="/openapi">Swagger UI</a>
+            </div>
+        </footer>
+    </main>
+</body>
+</html>

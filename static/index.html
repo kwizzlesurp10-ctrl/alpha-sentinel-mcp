@@ -3,275 +3,1160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alpha Sentinel - Market Intelligence</title>
+    <title>Alpha Sentinel — Predictive Crypto Intelligence Hub for AI Agents | On-chain Market Intelligence &amp; x402 Monetized API</title>
+    <meta name="description" content="Alpha Sentinel is the Predictive Crypto Intelligence Hub for AI Agents. Access Predictive Alpha, On-chain Market Intelligence, and Autonomous Trading Data via our x402 Monetized API and MCP Server on Base.">
+    <meta name="keywords" content="Predictive Alpha, On-chain Market Intelligence, x402 Monetized API, Autonomous Trading Data, Crypto MCP Server, AI Agent Crypto Tools, Financial Market Analysis, Base USDC Micropayments">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://alpha-sentinel-mcp.vercel.app/">
+
+    <!-- Open Graph / Social Discovery -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Predictive Crypto Intelligence Hub for AI Agents — Alpha Sentinel">
+    <meta property="og:description" content="Delivering Predictive Alpha, On-chain Market Intelligence, and Autonomous Trading Data through a frictionless x402 Monetized API and Model Context Protocol (MCP) server.">
+    <meta property="og:url" content="https://alpha-sentinel-mcp.vercel.app/">
+
+    <!-- LLM & Search Engine Structured Data (Schema.org JSON-LD) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": ["SoftwareApplication", "Service"],
+      "name": "Alpha Sentinel — Predictive Crypto Intelligence Hub for AI Agents",
+      "alternateName": "Alpha Sentinel Market Intelligence MCP",
+      "applicationCategory": "API Service",
+      "applicationSubCategory": "FinanceApplication",
+      "serviceType": "API Service",
+      "category": "Financial Market Analysis",
+      "operatingSystem": "All (HTTP, JSON-RPC 2.0, MCP, x402, REST)",
+      "url": "https://alpha-sentinel-mcp.vercel.app/",
+      "documentation": "https://alpha-sentinel-mcp.vercel.app/docs",
+      "description": "Alpha Sentinel is an institutional-grade API Service providing Financial Market Analysis, Predictive Alpha, On-chain Market Intelligence, x402 Monetized API access, and Autonomous Trading Data for AI agents and quantitative trading systems.",
+      "about": [
+        "Financial Market Analysis",
+        "Predictive Alpha",
+        "On-chain Market Intelligence",
+        "x402 Monetized API",
+        "Autonomous Trading Data"
+      ],
+      "knowsAbout": [
+        "Financial Market Analysis",
+        "Predictive Alpha",
+        "On-chain Market Intelligence",
+        "x402 Monetized API",
+        "Autonomous Trading Data",
+        "Cryptocurrency Volatility Z-Score Detection",
+        "Multi-Source Crypto Sentiment Analysis",
+        "Multi-Factor Portfolio Risk Scoring",
+        "Model Context Protocol (MCP)"
+      ],
+      "keywords": "Predictive Alpha, On-chain Market Intelligence, x402 Monetized API, Autonomous Trading Data, Financial Market Analysis, AI Agents, MCP Server",
+      "provider": {
+        "@type": "Organization",
+        "name": "Alpha Sentinel",
+        "url": "https://alpha-sentinel-mcp.vercel.app/"
+      },
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "fetch_price — Real-Time Spot Price & Volume Lookup",
+          "description": "Real-time cryptocurrency spot price, 24h change, and trading volume lookups via CoinGecko & Coinbase fallbacks. $0.005 USDC per call on Base (eip155:8453); unpaid preview at /tools/fetch_price/sample.",
+          "price": "0.005",
+          "priceCurrency": "USDC",
+          "url": "https://alpha-sentinel-mcp.vercel.app/tools/fetch_price",
+          "eligibleTransactionVolume": {
+            "@type": "PriceSpecification",
+            "price": "0.005",
+            "priceCurrency": "USDC",
+            "description": "Settled on Base Mainnet (eip155:8453) via x402 protocol"
+          }
+        },
+        {
+          "@type": "Offer",
+          "name": "analyze_volatility — Statistical Z-Score Anomaly Detection",
+          "description": "Statistical Z-score anomaly detection across configurable minute windows (1–1440m) and sigma thresholds (NORMAL, MODERATE, HIGH, CRITICAL alerts) for $0.02 USDC on Base (eip155:8453).",
+          "price": "0.02",
+          "priceCurrency": "USDC",
+          "url": "https://alpha-sentinel-mcp.vercel.app/tools/analyze_volatility"
+        },
+        {
+          "@type": "Offer",
+          "name": "aggregate_sentiment — Multi-Source Crypto Sentiment Aggregation",
+          "description": "Multi-source social & news sentiment aggregation across Twitter/X, Reddit, Telegram, and news feeds with momentum shift detection for $0.01 USDC on Base (eip155:8453).",
+          "price": "0.01",
+          "priceCurrency": "USDC",
+          "url": "https://alpha-sentinel-mcp.vercel.app/tools/aggregate_sentiment"
+        },
+        {
+          "@type": "Offer",
+          "name": "calculate_risk_score — Multi-Factor Asset & Portfolio Risk Scoring",
+          "description": "Multi-factor portfolio & asset risk scoring weighting volatility (40%), liquidity (25%), market cap tier (20%), and BTC correlation (15%) for $0.03 USDC on Base (eip155:8453).",
+          "price": "0.03",
+          "priceCurrency": "USDC",
+          "url": "https://alpha-sentinel-mcp.vercel.app/tools/calculate_risk_score"
+        },
+        {
+          "@type": "Offer",
+          "name": "generate_market_report — Executive Intelligence Synthesis",
+          "description": "Full-spectrum daily, weekly, and monthly executive intelligence synthesis combining price, volatility, sentiment, and risk for $0.15 USDC on Base (eip155:8453).",
+          "price": "0.15",
+          "priceCurrency": "USDC",
+          "url": "https://alpha-sentinel-mcp.vercel.app/tools/generate_market_report"
+        }
+      ],
+      "hasOfferCatalog": {
+        "@type": "OfferCatalog",
+        "name": "Alpha Sentinel Autonomous Trading Data & MCP Tool Catalog",
+        "url": "https://alpha-sentinel-mcp.vercel.app/.well-known/mcp.json",
+        "itemListElement": [
+          {
+            "@type": "OfferCatalog",
+            "name": "MCP Discovery Manifest",
+            "url": "https://alpha-sentinel-mcp.vercel.app/.well-known/mcp.json"
+          },
+          {
+            "@type": "OfferCatalog",
+            "name": "x402 Payment & Resource Catalog",
+            "url": "https://alpha-sentinel-mcp.vercel.app/.well-known/x402"
+          },
+          {
+            "@type": "OfferCatalog",
+            "name": "Developer Documentation & Playbooks",
+            "url": "https://alpha-sentinel-mcp.vercel.app/docs"
+          }
+        ]
+      },
+      "potentialAction": [
+        {
+          "@type": "ConsumeAction",
+          "name": "Invoke MCP JSON-RPC Endpoint",
+          "target": {
+            "@type": "EntryPoint",
+            "urlTemplate": "https://alpha-sentinel-mcp.vercel.app/mcp",
+            "httpMethod": "POST",
+            "contentType": "application/json"
+          }
+        },
+        {
+          "@type": "DiscoverAction",
+          "name": "Read MCP Server Manifest",
+          "target": "https://alpha-sentinel-mcp.vercel.app/.well-known/mcp.json"
+        },
+        {
+          "@type": "ReadAction",
+          "name": "Explore Use-Case Playbooks & API Documentation",
+          "target": "https://alpha-sentinel-mcp.vercel.app/docs"
+        }
+      ]
+    }
+    </script>
+
     <style>
         :root {
-            --primary: #6366f1;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --bg: #0f172a;
-            --card-bg: #1e293b;
-            --text: #f1f5f9;
+            --bg-deep: #0b1120;
+            --bg-main: #0f172a;
+            --bg-card: #1e293b;
+            --bg-card-hover: #26354d;
+            --border: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+            --indigo: #6366f1;
+            --indigo-light: #818cf8;
+            --emerald: #10b981;
+            --emerald-light: #34d399;
+            --amber: #f59e0b;
+            --rose: #f43f5e;
+            --cyan: #06b6d4;
         }
-        
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Segoe UI', system-ui, sans-serif;
-            background: var(--bg);
-            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
             margin: 0;
-            padding: 20px;
-            line-height: 1.6;
+            padding: 0;
+            line-height: 1.65;
+            -webkit-font-smoothing: antialiased;
         }
-        
+
+        a {
+            color: var(--indigo-light);
+            text-decoration: none;
+            transition: color 0.15s ease;
+        }
+
+        a:hover {
+            color: var(--emerald-light);
+            text-decoration: underline;
+        }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
+            padding: 0 24px;
         }
-        
-        header {
-            text-align: center;
-            margin-bottom: 40px;
+
+        /* Top Navigation */
+        nav.top-nav {
+            background: rgba(15, 23, 42, 0.92);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(8px);
         }
-        
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-        
-        .tagline {
-            color: var(--primary);
-            font-size: 1.2rem;
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 40px;
-        }
-        
-        .stat-card {
-            background: var(--card-bg);
-            padding: 25px;
-            border-radius: 12px;
-            border-left: 4px solid var(--primary);
-        }
-        
-        .stat-label {
-            font-size: 0.9rem;
-            color: #94a3b8;
-            margin-bottom: 8px;
-        }
-        
-        .stat-value {
-            font-size: 2rem;
-            font-weight: bold;
-        }
-        
-        .tools-list {
-            background: var(--card-bg);
-            padding: 30px;
-            border-radius: 12px;
-            margin-bottom: 40px;
-        }
-        
-        .tools-list h2 {
-            margin-top: 0;
-            border-bottom: 2px solid var(--primary);
-            padding-bottom: 15px;
-        }
-        
-        .tool-item {
+
+        .nav-inner {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 15px;
-            border-bottom: 1px solid #334155;
+            padding: 14px 0;
+            flex-wrap: wrap;
+            gap: 12px;
         }
-        
-        .tool-name {
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 1.15rem;
+            color: var(--text-primary);
+        }
+
+        .brand-badge {
+            background: rgba(99, 102, 241, 0.2);
+            color: var(--indigo-light);
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            font-size: 0.75rem;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 18px;
+            flex-wrap: wrap;
+            align-items: center;
+            font-size: 0.92rem;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .nav-links a:hover {
+            color: var(--emerald-light);
+            text-decoration: none;
+        }
+
+        /* Hero Header */
+        header.hero {
+            padding: 64px 0 48px;
+            border-bottom: 1px solid var(--border);
+            background: radial-gradient(circle at top right, rgba(99, 102, 241, 0.15), transparent 55%),
+                        radial-gradient(circle at top left, rgba(16, 185, 129, 0.1), transparent 45%);
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            color: var(--emerald-light);
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 0.85rem;
             font-weight: 600;
+            margin-bottom: 20px;
         }
-        
-        .tool-price {
-            color: var(--success);
-            font-weight: bold;
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--emerald);
+            box-shadow: 0 0 8px var(--emerald);
         }
-        
+
+        header.hero h1 {
+            font-size: clamp(2.1rem, 4.5vw, 3.25rem);
+            line-height: 1.15;
+            margin: 0 0 20px;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+        }
+
+        .hero-lead {
+            font-size: 1.18rem;
+            color: var(--text-secondary);
+            max-width: 880px;
+            margin: 0 0 28px;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 36px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            text-decoration: none;
+            transition: all 0.15s ease;
+        }
+
+        .btn-primary {
+            background: var(--indigo);
+            color: #ffffff;
+            border: 1px solid var(--indigo);
+        }
+
+        .btn-primary:hover {
+            background: #4f46e5;
+            color: #ffffff;
+            text-decoration: none;
+        }
+
+        .btn-emerald {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--emerald-light);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-emerald:hover {
+            background: rgba(16, 185, 129, 0.25);
+            color: #ffffff;
+            text-decoration: none;
+        }
+
+        .btn-outline {
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--indigo-light);
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+
+        /* Metrics Bar */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--indigo);
+            border-radius: 10px;
+            padding: 18px 20px;
+        }
+
+        .stat-card.emerald { border-left-color: var(--emerald); }
+        .stat-card.amber { border-left-color: var(--amber); }
+        .stat-card.cyan { border-left-color: var(--cyan); }
+
+        .stat-label {
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .stat-value {
+            font-size: 1.55rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .stat-sub {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* Sections */
+        main section {
+            padding: 52px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-header {
+            margin-bottom: 32px;
+        }
+
+        .section-eyebrow {
+            color: var(--emerald-light);
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+
+        .section-header h2 {
+            font-size: 1.85rem;
+            margin: 0 0 12px;
+            color: var(--text-primary);
+        }
+
+        .section-header p {
+            color: var(--text-secondary);
+            max-width: 820px;
+            margin: 0;
+            font-size: 1.05rem;
+        }
+
+        /* 4 Pillars Grid (Keyword Clusters) */
+        .pillars-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 20px;
+        }
+
+        article.pillar-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        article.pillar-card h3 {
+            margin: 0 0 10px;
+            font-size: 1.2rem;
+            color: var(--indigo-light);
+        }
+
+        article.pillar-card p {
+            margin: 0;
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Tool Directory */
+        .tools-directory {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        article.tool-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px;
+            transition: border-color 0.15s ease;
+        }
+
+        article.tool-card:hover {
+            border-color: var(--indigo-light);
+        }
+
+        .tool-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 14px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tool-title-group h3 {
+            margin: 0;
+            font-size: 1.35rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            color: var(--text-primary);
+        }
+
+        .tool-subtitle {
+            color: var(--indigo-light);
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-top: 4px;
+        }
+
+        .tool-badges {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
         .badge {
             display: inline-block;
             padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            margin-right: 10px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
         }
-        
+
         .badge-free {
-            background: rgba(16, 185, 129, 0.2);
-            color: var(--success);
+            background: rgba(16, 185, 129, 0.18);
+            color: var(--emerald-light);
+            border: 1px solid rgba(16, 185, 129, 0.4);
         }
-        
+
         .badge-paid {
-            background: rgba(245, 158, 11, 0.2);
-            color: var(--warning);
+            background: rgba(99, 102, 241, 0.18);
+            color: var(--indigo-light);
+            border: 1px solid rgba(99, 102, 241, 0.4);
         }
-        
-        .action-buttons {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
+
+        .price-tag {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--emerald-light);
+            background: rgba(15, 23, 42, 0.7);
+            padding: 4px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
         }
-        
-        .btn {
-            padding: 12px 30px;
+
+        .tool-description {
+            color: var(--text-secondary);
+            margin: 0 0 18px;
+            font-size: 0.98rem;
+        }
+
+        .params-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 18px;
+            font-size: 0.9rem;
+            background: rgba(15, 23, 42, 0.55);
             border-radius: 8px;
-            border: none;
+            overflow: hidden;
+        }
+
+        .params-table th,
+        .params-table td {
+            text-align: left;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .params-table th {
+            color: var(--text-muted);
             font-weight: 600;
-            cursor: pointer;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            background: rgba(15, 23, 42, 0.85);
+        }
+
+        .params-table code {
+            color: var(--emerald-light);
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        }
+
+        .tool-links {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            font-size: 0.9rem;
+            padding-top: 6px;
+        }
+
+        .tool-links a {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            padding: 6px 14px;
+            border-radius: 6px;
+            color: var(--indigo-light);
+            font-weight: 500;
+        }
+
+        .tool-links a:hover {
+            background: rgba(16, 185, 129, 0.15);
+            border-color: var(--emerald-light);
+            color: var(--emerald-light);
             text-decoration: none;
-            display: inline-block;
         }
-        
-        .btn-primary {
-            background: var(--primary);
-            color: white;
+
+        /* Playbooks & Discovery Links Grid */
+        .links-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
         }
-        
-        .btn-secondary {
-            background: transparent;
-            border: 2px solid var(--primary);
-            color: var(--primary);
+
+        .link-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
         }
-        
-        footer {
+
+        .link-box h3 {
+            margin: 0 0 14px;
+            font-size: 1.2rem;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 10px;
+        }
+
+        .link-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .link-list li {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .link-list a {
+            font-weight: 600;
+            font-size: 0.98rem;
+        }
+
+        .link-list span {
+            font-size: 0.86rem;
+            color: var(--text-muted);
+        }
+
+        /* Code Block */
+        pre.code-block {
+            background: #090d16;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px;
+            overflow-x: auto;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.88rem;
+            color: #e2e8f0;
+            margin: 16px 0 0;
+        }
+
+        /* Footer */
+        footer.site-footer {
+            padding: 40px 0;
+            color: var(--text-muted);
+            font-size: 0.9rem;
             text-align: center;
-            padding-top: 30px;
-            border-top: 1px solid #334155;
-            color: #94a3b8;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🛡️ Alpha Sentinel</h1>
-            <p class="tagline">Market Intelligence x402 Marketplace</p>
-            <p style="color: var(--success);">✓ System Operational</p>
-        </header>
-        
-        <div class="stats-grid">
-            <div class="stat-card" style="border-color: var(--success)">
-                <div class="stat-label">MCP Tools Available</div>
-                <div class="stat-value">5</div>
+    <nav class="top-nav" aria-label="Primary Navigation">
+        <div class="container nav-inner">
+            <div class="brand">
+                <span>🛡️ Alpha Sentinel</span>
+                <span class="brand-badge">MCP + x402 v1.0</span>
             </div>
-            <div class="stat-card" style="border-color: var(--primary)">
-                <div class="stat-label">Paid SKUs from</div>
-                <div class="stat-value">$0.005</div>
-            </div>
-            <div class="stat-card" style="border-color: var(--warning)">
-                <div class="stat-label">Pro Tier Pricing</div>
-                <div class="stat-value">$29/mo</div>
-            </div>
-            <div class="stat-card" style="border-color: var(--danger)">
-                <div class="stat-label">Settlement Network</div>
-                <div class="stat-value">Base (x402)</div>
+            <div class="nav-links">
+                <a href="#tools-directory">Tool Directory</a>
+                <a href="#playbooks">Use-Case Playbooks</a>
+                <a href="/docs">Documentation Hub</a>
+                <a href="/openapi">OpenAPI Spec</a>
+                <a href="/.well-known/mcp.json">MCP Manifest</a>
+                <a href="/.well-known/x402">x402 Catalog</a>
+                <a href="/llms.txt">llms.txt</a>
             </div>
         </div>
-        
-        <div class="tools-list">
-            <h2>⚡ Available Intelligence Tools</h2>
-            
-            <div class="tool-item">
-                <div>
-                    <div class="tool-name">fetch_price()</div>
-                    <div style="color: #94a3b8; font-size: 0.9rem;">Real-time crypto price lookups</div>
-                </div>
-                <div>
-                    <span class="badge badge-paid">PAID</span>
-                    <span class="tool-price">$0.005</span>
-                </div>
+    </nav>
+
+    <header class="hero">
+        <div class="container">
+            <div class="status-pill" id="live-status-pill">
+                <span class="status-dot"></span>
+                <span id="live-status-text">System Operational • Base Mainnet x402 &amp; MCP JSON-RPC Active</span>
             </div>
-            
-            <div class="tool-item">
-                <div>
-                    <div class="tool-name">analyze_volatility()</div>
-                    <div style="color: #94a3b8; font-size: 0.9rem;">Z-score anomaly detection</div>
-                </div>
-                <div>
-                    <span class="badge badge-paid">PRO</span>
-                    <span class="tool-price">$0.02</span>
-                </div>
+
+            <h1>Predictive Crypto Intelligence Hub for AI Agents.</h1>
+
+            <p class="hero-lead">
+                Alpha Sentinel delivers institutional-grade <strong>Predictive Alpha</strong>, real-time <strong>On-chain Market Intelligence</strong>, and deterministic <strong>Autonomous Trading Data</strong> engineered specifically for LLM agents, quantitative execution bots, and Model Context Protocol (MCP) workflows. Consume high-signal market analytics effortlessly through our <strong>x402 Monetized API</strong> settled natively in USDC on Base.
+            </p>
+
+            <div class="hero-actions">
+                <a href="/docs" class="btn btn-primary">Explore Developer Playbooks (/docs)</a>
+                <a href="/openapi" class="btn btn-emerald">Interactive OpenAPI UI (/openapi)</a>
+                <a href="/.well-known/mcp.json" class="btn btn-outline">MCP Discovery Manifest</a>
+                <a href="/llms.txt" class="btn btn-outline">Read /llms.txt</a>
             </div>
-            
-            <div class="tool-item">
-                <div>
-                    <div class="tool-name">aggregate_sentiment()</div>
-                    <div style="color: #94a3b8; font-size: 0.9rem;">Social sentiment aggregation</div>
+
+            <div class="stats-grid" aria-label="Platform Capabilities Overview">
+                <div class="stat-card emerald">
+                    <div class="stat-label">MCP Intelligence Tools</div>
+                    <div class="stat-value" id="stat-tools-count">5 Tools</div>
+                    <div class="stat-sub">Price, Volatility, Sentiment, Risk &amp; Reports</div>
                 </div>
-                <div>
-                    <span class="badge badge-paid">PRO</span>
-                    <span class="tool-price">$0.01</span>
+                <div class="stat-card">
+                    <div class="stat-label">Paid SKUs from</div>
+                    <div class="stat-value">$0.005</div>
+                    <div class="stat-sub">Unpaid previews at /tools/{name}/sample</div>
                 </div>
-            </div>
-            
-            <div class="tool-item">
-                <div>
-                    <div class="tool-name">calculate_risk_score()</div>
-                    <div style="color: #94a3b8; font-size: 0.9rem;">Multi-factor risk assessment</div>
+                <div class="stat-card amber">
+                    <div class="stat-label">x402 Monetized API</div>
+                    <div class="stat-value">$0.005 – $0.15</div>
+                    <div class="stat-sub">Pay-per-call USDC micropayments on Base</div>
                 </div>
-                <div>
-                    <span class="badge badge-paid">PRO</span>
-                    <span class="tool-price">$0.03</span>
-                </div>
-            </div>
-            
-            <div class="tool-item">
-                <div>
-                    <div class="tool-name">generate_market_report()</div>
-                    <div style="color: #94a3b8; font-size: 0.9rem;">Comprehensive intelligence reports</div>
-                </div>
-                <div>
-                    <span class="badge badge-paid">PRO</span>
-                    <span class="tool-price">$0.15</span>
+                <div class="stat-card cyan">
+                    <div class="stat-label">Agent Protocols</div>
+                    <div class="stat-value">MCP + A2A + REST</div>
+                    <div class="stat-sub">JSON-RPC 2.0, OpenAPI 3.1 &amp; x402 headers</div>
                 </div>
             </div>
         </div>
-        
-        <div class="tools-list">
-            <h2>🚀 Quick Start</h2>
-            
-            <div style="margin-bottom: 20px;">
-                <h3 style="margin-top: 0;">1. Configure MCP in Your IDE</h3>
-                <pre style="background: #0f172a; padding: 15px; border-radius: 8px; overflow-x: auto; font-size: 0.9rem;">{
+    </header>
+
+    <main class="container">
+        <!-- Section 1: Core Keyword Pillars -->
+        <section id="intelligence-architecture" aria-labelledby="heading-architecture">
+            <div class="section-header">
+                <div class="section-eyebrow">Agent-Native Financial Market Analysis</div>
+                <h2 id="heading-architecture">Why Autonomous Agents Choose Alpha Sentinel</h2>
+                <p>
+                    Modern DeFi execution engines and LLM research agents require verifiable, low-latency market signals without brittle web scraping or expensive enterprise seat licenses. Alpha Sentinel bridges quantitative market data with agent-native discovery and micropayment settlement.
+                </p>
+            </div>
+
+            <div class="pillars-grid">
+                <article class="pillar-card">
+                    <h3>Predictive Alpha</h3>
+                    <p>
+                        Extract actionable <strong>Predictive Alpha</strong> before broader market repricing occurs. By combining rolling Z-score volatility anomaly detection with multi-source social momentum shifts, AI agents can identify regime transitions, breakout setups, and liquidity dislocations early.
+                    </p>
+                </article>
+
+                <article class="pillar-card">
+                    <h3>On-chain Market Intelligence</h3>
+                    <p>
+                        Synthesize real-time <strong>On-chain Market Intelligence</strong> across major crypto assets including BTC, ETH, SOL, and emerging ecosystems. Multi-provider price aggregation, volume profiling, and correlation-weighted risk scoring protect autonomous portfolios from unexpected drawdowns.
+                    </p>
+                </article>
+
+                <article class="pillar-card">
+                    <h3>x402 Monetized API</h3>
+                    <p>
+                        Built on the open HTTP 402 payment standard, our <strong>x402 Monetized API</strong> allows autonomous agents to pay per request in USDC on Base Mainnet (<code>eip155:8453</code>) using standard <code>PAYMENT-SIGNATURE</code> or <code>X-PAYMENT</code> headers—zero human credit cards or OAuth flows required.
+                    </p>
+                </article>
+
+                <article class="pillar-card">
+                    <h3>Autonomous Trading Data</h3>
+                    <p>
+                        Every endpoint returns strictly typed, schema-validated <strong>Autonomous Trading Data</strong> tailored for deterministic tool calling. Agents can inspect live sample responses at <code>/tools/{tool_name}/sample</code> prior to execution to guarantee zero-hallucination parsing.
+                    </p>
+                </article>
+            </div>
+        </section>
+
+        <!-- Section 2: Comprehensive 5-Tool Directory -->
+        <section id="tools-directory" aria-labelledby="heading-tools">
+            <div class="section-header">
+                <div class="section-eyebrow">Complete MCP &amp; REST Tool Catalog</div>
+                <h2 id="heading-tools">Alpha Sentinel Intelligence Tool Directory</h2>
+                <p>
+                    All five tools are accessible via our unified Model Context Protocol endpoint (<code>POST /mcp</code>), REST execution endpoints (<code>POST /tools/{tool_name}</code>), and zero-cost schema/sample inspection routes (<code>GET /tools/{tool_name}/sample</code>).
+                </p>
+            </div>
+
+            <div class="tools-directory">
+                <!-- Tool 1: fetch_price -->
+                <article class="tool-card" id="tool-fetch-price">
+                    <div class="tool-header">
+                        <div class="tool-title-group">
+                            <h3>1. fetch_price</h3>
+                            <div class="tool-subtitle">Real-Time Cryptocurrency Spot Price, 24h Delta &amp; Volume Aggregator</div>
+                        </div>
+                        <div class="tool-badges">
+                            <span class="badge badge-paid">Paid · x402</span>
+                            <span class="price-tag">$0.005 USDC</span>
+                        </div>
+                    </div>
+                    <p class="tool-description">
+                        Delivers low-latency cryptocurrency spot price, 24-hour percentage change, and 24-hour trading volume lookups powered by CoinGecko primary feeds with automatic Coinbase spot price fallbacks. Ideal for high-frequency portfolio marking and <strong>Autonomous Trading Data</strong> pipelines.
+                    </p>
+                    <table class="params-table" aria-label="fetch_price parameters">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Required</th>
+                                <th>Description &amp; Constraints</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>coin_id</code></td>
+                                <td><code>string</code></td>
+                                <td>Yes</td>
+                                <td>Asset identifier or ticker symbol (e.g., <code>bitcoin</code>, <code>ethereum</code>, <code>solana</code>, <code>BTC</code>, <code>ETH</code>).</td>
+                            </tr>
+                            <tr>
+                                <td><code>vs_currency</code></td>
+                                <td><code>string</code></td>
+                                <td>No (Default: <code>usd</code>)</td>
+                                <td>Quote currency for valuation (e.g., <code>usd</code>, <code>eur</code>, <code>btc</code>).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="tool-links">
+                        <a href="/tools/fetch_price">🔗 Tool Endpoint &amp; Schema (/tools/fetch_price)</a>
+                        <a href="/tools/fetch_price/sample">🧪 Live Sample Payload (/tools/fetch_price/sample)</a>
+                    </div>
+                </article>
+
+                <!-- Tool 2: analyze_volatility -->
+                <article class="tool-card" id="tool-analyze-volatility">
+                    <div class="tool-header">
+                        <div class="tool-title-group">
+                            <h3>2. analyze_volatility</h3>
+                            <div class="tool-subtitle">Statistical Z-Score Anomaly Detection &amp; Regime Alert Engine</div>
+                        </div>
+                        <div class="tool-badges">
+                            <span class="badge badge-paid">x402 Pro Signal</span>
+                            <span class="price-tag">$0.02 USDC</span>
+                        </div>
+                    </div>
+                    <p class="tool-description">
+                        Computes statistical Z-score volatility anomalies across configurable minute windows (<code>1</code> to <code>1440</code> minutes) and custom sigma thresholds. Classifies real-time market turbulence into <code>NORMAL</code>, <code>MODERATE</code>, <code>HIGH</code>, or <code>CRITICAL</code> alert states so agents can capture <strong>Predictive Alpha</strong> or halt risky market-making orders.
+                    </p>
+                    <table class="params-table" aria-label="analyze_volatility parameters">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Required</th>
+                                <th>Description &amp; Constraints</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>coin_id</code></td>
+                                <td><code>string</code></td>
+                                <td>Yes</td>
+                                <td>Target cryptocurrency identifier (e.g., <code>bitcoin</code>, <code>ethereum</code>, <code>solana</code>).</td>
+                            </tr>
+                            <tr>
+                                <td><code>window_minutes</code></td>
+                                <td><code>integer</code></td>
+                                <td>No (Default: <code>60</code>)</td>
+                                <td>Lookback rolling window in minutes (valid range: <code>1</code> to <code>1440</code> minutes).</td>
+                            </tr>
+                            <tr>
+                                <td><code>threshold_sigma</code></td>
+                                <td><code>number</code></td>
+                                <td>No (Default: <code>2.0</code>)</td>
+                                <td>Standard deviation Z-score threshold for anomaly classification (<code>0.5</code> to <code>5.0</code> sigma).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="tool-links">
+                        <a href="/tools/analyze_volatility">🔗 Tool Endpoint &amp; Schema (/tools/analyze_volatility)</a>
+                        <a href="/tools/analyze_volatility/sample">🧪 Live Sample Payload (/tools/analyze_volatility/sample)</a>
+                        <a href="/docs/automate-volatility-alerts">📘 Volatility Alert Playbook</a>
+                    </div>
+                </article>
+
+                <!-- Tool 3: aggregate_sentiment -->
+                <article class="tool-card" id="tool-aggregate-sentiment">
+                    <div class="tool-header">
+                        <div class="tool-title-group">
+                            <h3>3. aggregate_sentiment</h3>
+                            <div class="tool-subtitle">Multi-Source Social &amp; News Sentiment Aggregation with Momentum Shifts</div>
+                        </div>
+                        <div class="tool-badges">
+                            <span class="badge badge-paid">x402 Pro Signal</span>
+                            <span class="price-tag">$0.01 USDC</span>
+                        </div>
+                    </div>
+                    <p class="tool-description">
+                        Aggregates normalized bullish/bearish sentiment scores (<code>-1.0</code> to <code>+1.0</code>) across Twitter/X, Reddit, Telegram, and crypto news feeds. Detects narrative acceleration and crowd momentum shifts to enrich <strong>On-chain Market Intelligence</strong> and pre-trade slippage estimation.
+                    </p>
+                    <table class="params-table" aria-label="aggregate_sentiment parameters">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Required</th>
+                                <th>Description &amp; Constraints</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>coin_id</code></td>
+                                <td><code>string</code></td>
+                                <td>Yes</td>
+                                <td>Cryptocurrency identifier to analyze (e.g., <code>bitcoin</code>, <code>ethereum</code>, <code>solana</code>).</td>
+                            </tr>
+                            <tr>
+                                <td><code>sources</code></td>
+                                <td><code>array&lt;string&gt;</code></td>
+                                <td>No (Default: all)</td>
+                                <td>Filter by specific channels: <code>["twitter", "reddit", "telegram", "news"]</code>.</td>
+                            </tr>
+                            <tr>
+                                <td><code>lookback_hours</code></td>
+                                <td><code>integer</code></td>
+                                <td>No (Default: <code>24</code>)</td>
+                                <td>Historical aggregation window in hours (<code>1</code> to <code>168</code> hours).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="tool-links">
+                        <a href="/tools/aggregate_sentiment">🔗 Tool Endpoint &amp; Schema (/tools/aggregate_sentiment)</a>
+                        <a href="/tools/aggregate_sentiment/sample">🧪 Live Sample Payload (/tools/aggregate_sentiment/sample)</a>
+                        <a href="/docs/reduce-slippage-sentiment">📘 Sentiment Slippage Playbook</a>
+                    </div>
+                </article>
+
+                <!-- Tool 4: calculate_risk_score -->
+                <article class="tool-card" id="tool-calculate-risk-score">
+                    <div class="tool-header">
+                        <div class="tool-title-group">
+                            <h3>4. calculate_risk_score</h3>
+                            <div class="tool-subtitle">Multi-Factor Asset &amp; Portfolio Risk Scoring Engine</div>
+                        </div>
+                        <div class="tool-badges">
+                            <span class="badge badge-paid">x402 Pro Signal</span>
+                            <span class="price-tag">$0.03 USDC</span>
+                        </div>
+                    </div>
+                    <p class="tool-description">
+                        Produces a composite <code>0–100</code> quantitative risk rating by weighting realized volatility (<strong>40%</strong>), order-book &amp; turnover liquidity (<strong>25%</strong>), market capitalization tier (<strong>20%</strong>), and Bitcoin beta correlation (<strong>15%</strong>). Returns automated position-sizing guidance for autonomous treasury managers.
+                    </p>
+                    <table class="params-table" aria-label="calculate_risk_score parameters">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Required</th>
+                                <th>Description &amp; Constraints</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>coin_id</code></td>
+                                <td><code>string</code></td>
+                                <td>Yes</td>
+                                <td>Target crypto asset identifier (e.g., <code>bitcoin</code>, <code>ethereum</code>, <code>solana</code>).</td>
+                            </tr>
+                            <tr>
+                                <td><code>portfolio_allocation_pct</code></td>
+                                <td><code>number</code></td>
+                                <td>No (Default: <code>10.0</code>)</td>
+                                <td>Proposed portfolio weight percentage (<code>0.1</code> to <code>100.0</code>) for concentration-adjusted risk scoring.</td>
+                            </tr>
+                            <tr>
+                                <td><code>risk_tolerance</code></td>
+                                <td><code>string</code></td>
+                                <td>No (Default: <code>moderate</code>)</td>
+                                <td>Agent mandate profile: <code>conservative</code>, <code>moderate</code>, or <code>aggressive</code>.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="tool-links">
+                        <a href="/tools/calculate_risk_score">🔗 Tool Endpoint &amp; Schema (/tools/calculate_risk_score)</a>
+                        <a href="/tools/calculate_risk_score/sample">🧪 Live Sample Payload (/tools/calculate_risk_score/sample)</a>
+                    </div>
+                </article>
+
+                <!-- Tool 5: generate_market_report -->
+                <article class="tool-card" id="tool-generate-market-report">
+                    <div class="tool-header">
+                        <div class="tool-title-group">
+                            <h3>5. generate_market_report</h3>
+                            <div class="tool-subtitle">Full-Spectrum Executive Market Intelligence Synthesis</div>
+                        </div>
+                        <div class="tool-badges">
+                            <span class="badge badge-paid">x402 Institutional</span>
+                            <span class="price-tag">$0.15 USDC</span>
+                        </div>
+                    </div>
+                    <p class="tool-description">
+                        Synthesizes spot price action, Z-score volatility regimes, multi-channel social sentiment, and multi-factor risk scores into a cohesive daily, weekly, or monthly executive brief. Designed for multi-agent orchestrators seeking comprehensive <strong>On-chain Market Intelligence</strong> and actionable trading theses in a single call.
+                    </p>
+                    <table class="params-table" aria-label="generate_market_report parameters">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Type</th>
+                                <th>Required</th>
+                                <th>Description &amp; Constraints</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>coin_ids</code></td>
+                                <td><code>array&lt;string&gt;</code></td>
+                                <td>Yes</td>
+                                <td>List of cryptocurrency identifiers to include in the synthesis (e.g., <code>["bitcoin", "ethereum", "solana"]</code>).</td>
+                            </tr>
+                            <tr>
+                                <td><code>period</code></td>
+                                <td><code>string</code></td>
+                                <td>No (Default: <code>daily</code>)</td>
+                                <td>Report horizon: <code>daily</code> (24h), <code>weekly</code> (7d), or <code>monthly</code> (30d).</td>
+                            </tr>
+                            <tr>
+                                <td><code>include_recommendations</code></td>
+                                <td><code>boolean</code></td>
+                                <td>No (Default: <code>true</code>)</td>
+                                <td>Whether to include regime-based position sizing and directional alpha signals.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="tool-links">
+                        <a href="/tools/generate_market_report">🔗 Tool Endpoint &amp; Schema (/tools/generate_market_report)</a>
+                        <a href="/tools/generate_market_report/sample">🧪 Live Sample Payload (/tools/generate_market_report/sample)</a>
+                        <a href="/docs/integrate-predictive-alpha">📘 Predictive Alpha Integration Guide</a>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <!-- Section 3: Internal Crawl Links, Playbooks & Machine Discovery -->
+        <section id="playbooks" aria-labelledby="heading-playbooks">
+            <div class="section-header">
+                <div class="section-eyebrow">Documentation, Playbooks &amp; Machine Discovery</div>
+                <h2 id="heading-playbooks">Developer Playbooks &amp; Autonomous Discovery Endpoints</h2>
+                <p>
+                    Explore our step-by-step engineering tutorials for quantitative trading agents or connect your MCP/A2A client directly to our machine-readable discovery manifests.
+                </p>
+            </div>
+
+            <div class="links-grid">
+                <div class="link-box">
+                    <h3>📚 Use-Case Playbooks &amp; Guides</h3>
+                    <ul class="link-list">
+                        <li>
+                            <a href="/docs">Use-Case Playbooks &amp; Developer Documentation Hub (/docs)</a>
+                            <span>Central hub for architecture diagrams, x402 payment headers, and Python/TypeScript integration recipes.</span>
+                        </li>
+                        <li>
+                            <a href="/docs/automate-volatility-alerts">How to automate volatility alerts using Alpha Sentinel</a>
+                            <span>Tutorial on polling <code>analyze_volatility</code> to detect 2.5σ Z-score breakouts and trigger automated circuit breakers.</span>
+                        </li>
+                        <li>
+                            <a href="/docs/integrate-predictive-alpha">Integrating predictive alpha into an autonomous trading agent</a>
+                            <span>End-to-end LangChain &amp; MCP workflow combining <code>generate_market_report</code> and <code>calculate_risk_score</code> for autonomous execution.</span>
+                        </li>
+                        <li>
+                            <a href="/docs/reduce-slippage-sentiment">Reducing slippage with real-time sentiment analysis</a>
+                            <span>How execution bots use <code>aggregate_sentiment</code> and <code>fetch_price</code> to split orders during high-momentum narrative spikes.</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="link-box">
+                    <h3>🤖 Agent &amp; Protocol Discovery Manifests</h3>
+                    <ul class="link-list">
+                        <li>
+                            <a href="/openapi">Interactive OpenAPI 3.1 &amp; Swagger UI (/openapi)</a>
+                            <span>Full REST &amp; JSON-RPC schema explorer with interactive request testing.</span>
+                        </li>
+                        <li>
+                            <a href="/.well-known/mcp.json">MCP Discovery Manifest (/.well-known/mcp.json)</a>
+                            <span>Standard Model Context Protocol server capabilities, tool schemas, and transport metadata (also at <a href="/.well-known/mcp">/.well-known/mcp</a>).</span>
+                        </li>
+                        <li>
+                            <a href="/.well-known/x402">x402 Payment &amp; Resource Catalog (/.well-known/x402)</a>
+                            <span>Machine-readable Base Mainnet USDC pricing, payTo wallet address, and resource descriptors.</span>
+                        </li>
+                        <li>
+                            <a href="/.well-known/agent-card.json">A2A v1.0 Agent Card (/.well-known/agent-card.json)</a>
+                            <span>Agent-to-Agent discovery manifest for multi-agent orchestration frameworks.</span>
+                        </li>
+                        <li>
+                            <a href="/llms.txt">LLM Plain-Text Documentation (/llms.txt)</a>
+                            <span>Token-efficient markdown reference optimized for LLM context ingestion.</span>
+                        </li>
+                        <li>
+                            <a href="/catalog">Full Tool Catalog JSON (/catalog)</a> &amp; <a href="/health">System Health Check (/health)</a>
+                            <span>Real-time operational telemetry and tool pricing breakdown.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <pre class="code-block" aria-label="MCP Client Configuration Snippet">{
   "mcpServers": {
     "alpha-sentinel": {
-      "command": "python",
-      "args": ["run_stdio.py"],
-      "description": "Alpha Sentinel Volatility"
+      "url": "https://alpha-sentinel-mcp.vercel.app/mcp",
+      "description": "Predictive Crypto Intelligence Hub for AI Agents — Predictive Alpha, On-chain Market Intelligence &amp; x402 Monetized API"
     }
   }
 }</pre>
+        </section>
+    </main>
+
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-links">
+                <a href="/docs">Documentation</a>
+                <a href="/openapi">OpenAPI</a>
+                <a href="/.well-known/mcp.json">MCP Manifest</a>
+                <a href="/.well-known/x402">x402 Catalog</a>
+                <a href="/.well-known/agent-card.json">Agent Card</a>
+                <a href="/llms.txt">llms.txt</a>
+                <a href="/catalog">Catalog</a>
+                <a href="/health">Health</a>
             </div>
-            
-            <div style="margin-bottom: 20px;">
-                <h3 style="margin-top: 0;">2. View API Documentation</h3>
-                <p style="color: #94a3b8;">API Docs available at <a href="/docs" style="color: var(--primary);">/docs</a></p>
-            </div>
+            <p>
+                <strong>Alpha Sentinel</strong> — Predictive Crypto Intelligence Hub for AI Agents. Delivering Predictive Alpha, On-chain Market Intelligence, and Autonomous Trading Data via our x402 Monetized API on Base.
+            </p>
         </div>
-        
-        <div class="action-buttons">
-            <a href="/docs" class="btn btn-primary">View API Docs</a>
-            <a href="https://github.com/kwizzlesurp10-ctrl/alpha-sentinel-mcp" class="btn btn-secondary">View on GitHub</a>
-            <a href="QUICKSTART.md" class="btn btn-secondary">Quick Start Guide</a>
-        </div>
-        
-        <footer>
-            <p>Built by Keith (kwizzlesurp10-ctrl) • Powered by x402 Micropayments</p>
-            <p style="font-size: 0.9rem;">Predictive intelligence, monetized on-chain ★彡</p>
-        </footer>
-    </div>
+    </footer>
+
+    <!-- Progressive Enhancement: Live Health & Telemetry Check (Never hides static HTML content) -->
+    <script>
+        (function () {
+            fetch('/health')
+                .then(function (res) { return res.ok ? res.json() : null; })
+                .then(function (data) {
+                    if (data && data.status) {
+                        var statusEl = document.getElementById('live-status-text');
+                        if (statusEl) {
+                            statusEl.textContent = 'System ' + String(data.status).toUpperCase() + ' • Base Mainnet x402 & MCP JSON-RPC Active';
+                        }
+                    }
+                })
+                .catch(function () {
+                    /* Keep default static status text intact */
+                });
+        })();
+    </script>
 </body>
 </html>

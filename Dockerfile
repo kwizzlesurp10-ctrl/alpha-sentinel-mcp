@@ -31,8 +31,12 @@ RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 COPY --from=builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-# Copy application code
+# Copy application code and static SEO / MCP discovery manifests
 COPY app/ ./app/
+COPY static/ ./static/
+COPY .well-known/ ./.well-known/
+COPY robots.txt ./
+COPY index.html ./
 COPY run_stdio.py ./
 COPY server.json ./
 

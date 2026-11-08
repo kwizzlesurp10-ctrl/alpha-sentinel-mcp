@@ -1,0 +1,44 @@
+# Alpha Sentinel Market Intelligence — Protocol SEO & Agent Discovery
+User-agent: x402
+User-agent: x402-bot
+User-agent: x402scan
+User-agent: AgentCash
+Allow: /
+Allow: /.well-known/mcp.json
+Allow: /.well-known/mcp
+Allow: /.well-known/x402
+Allow: /.well-known/agent-card.json
+Allow: /docs
+Allow: /llms.txt
+
+User-agent: Googlebot
+User-agent: Google-Extended
+Allow: /
+Allow: /.well-known/mcp.json
+Allow: /.well-known/mcp
+Allow: /.well-known/x402
+Allow: /.well-known/agent-card.json
+Allow: /docs
+Allow: /llms.txt
+
+User-agent: GPTBot
+User-agent: ClaudeBot
+User-agent: PerplexityBot
+Allow: /
+Allow: /.well-known/mcp.json
+Allow: /.well-known/mcp
+Allow: /.well-known/x402
+Allow: /.well-known/agent-card.json
+Allow: /docs
+Allow: /llms.txt
+
+User-agent: *
+Allow: /
+Allow: /.well-known/mcp.json
+Allow: /.well-known/mcp
+Allow: /.well-known/x402
+Allow: /.well-known/agent-card.json
+Allow: /docs
+Allow: /llms.txt
+
+Sitemap: https://alpha-sentinel-mcp.vercel.app/sitemap.xml
