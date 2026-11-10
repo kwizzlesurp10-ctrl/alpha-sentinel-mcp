@@ -40,6 +40,12 @@ PUBLIC_FREE_PATHS = {
     "/tools/calculate_risk_score/sample",
     "/tools/generate_report/sample",
     "/tools/generate_market_report/sample",
+    "/tools/tokenized_stock_list/sample",
+    "/tools/tokenized_stock_lookup/sample",
+    "/tools/tokenized_stock_nav_deviation/sample",
+    "/tools/tokenized_stock_corporate_action/sample",
+    "/tools/tokenized_stock_research_brief/sample",
+    "/tools/tokenized_stock_model_portfolio/sample",
 }
 
 

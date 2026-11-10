@@ -146,7 +146,7 @@ from app.tools_registry import (
 def test_tool_count_consistency():
     """Test that tool counts match specifications."""
     assert TOOL_COUNT == len(EXPECTED_TOOL_NAMES)
-    assert TOOL_COUNT == 5  # fetch_price, analyze_volatility, aggregate_sentiment, calculate_risk_score, generate_market_report
+    assert TOOL_COUNT == 11  # crypto intel (5) + stocksmaxxing tokenized-stock tools (6)
 
 
 def test_free_vs_paid_tools():

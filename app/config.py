@@ -125,6 +125,11 @@ class Settings(BaseSettings):
 
     coingecko_api_key: str | None = None
     coingecko_base_url: str = "https://api.coingecko.com/api/v3"
+
+    tokenized_stocks_api_base_url: str = "https://api.coinbase.com/v1/tokenized-stocks"
+    tokenized_stock_nav_max_age_hours: float = 24.0
+    underlying_equity_price_provider: str = "yahoo"
+    finnhub_api_key: str | None = None
     x_api_key: str | None = None
     reddit_api_id: str | None = None
     reddit_api_secret: str | None = None

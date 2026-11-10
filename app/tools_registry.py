@@ -220,6 +220,14 @@ Perfect for daily briefings or strategic planning.
     },
 ]
 
+from app.stocksmaxxing.registry import (  # noqa: E402
+    STOCKSMAXXING_TOOL_HTTP_PATHS,
+    STOCKSMAXXING_TOOL_PRICES,
+    STOCKSMAXXING_TOOL_SPECS,
+)
+
+TOOL_SPECS.extend(STOCKSMAXXING_TOOL_SPECS)
+
 # ============================================================================
 # Derived Constants (computed from TOOL_SPECS)
 # ============================================================================
@@ -244,6 +252,7 @@ TOOL_PRICES = {
     "aggregate_sentiment": "$0.01",
     "calculate_risk_score": "$0.03",
     "generate_market_report": "$0.15",
+    **STOCKSMAXXING_TOOL_PRICES,
 }
 
 # Canonical HTTP paths (1:1 with tool names). Legacy aliases stay accepted.
@@ -253,6 +262,7 @@ TOOL_HTTP_PATHS = {
     "aggregate_sentiment": "/tools/aggregate_sentiment",
     "calculate_risk_score": "/tools/calculate_risk_score",
     "generate_market_report": "/tools/generate_market_report",
+    **STOCKSMAXXING_TOOL_HTTP_PATHS,
 }
 
 TOOL_HTTP_ALIASES = {

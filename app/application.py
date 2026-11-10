@@ -425,6 +425,18 @@ SAMPLE_INPUTS: dict[str, dict] = {
         "symbols": ["btc", "eth"],
         "format": "json",
     },
+    "tokenized_stock_list": {"query": "circle", "page_size": 5},
+    "tokenized_stock_lookup": {"symbol": "CRCLc"},
+    "tokenized_stock_nav_deviation": {"symbol": "CRCLc"},
+    "tokenized_stock_corporate_action": {
+        "corporate_action_id": "e82812a6-0b24-41c4-8ed1-322d1b466d33",
+    },
+    "tokenized_stock_research_brief": {"symbols": ["CRCLc", "RKTc"]},
+    "tokenized_stock_model_portfolio": {
+        "symbols": ["CRCLc", "RKTc"],
+        "current_weights": {"CRCLc": 0.6, "RKTc": 0.4},
+        "objective": "balanced",
+    },
 }
 
 
@@ -602,6 +614,17 @@ async def http_generate_report(request: Request):
 @api.post("/tools/generate_market_report")
 async def http_generate_market_report(request: Request):
     return await _http_generate_report(request)
+
+
+from app.stocksmaxxing.http import STOCKSMAXXING_HTTP_HANDLERS  # noqa: E402
+
+for _tool_name, _handler in STOCKSMAXXING_HTTP_HANDLERS.items():
+    api.add_api_route(
+        f"/tools/{_tool_name}",
+        _handler,
+        methods=["GET", "POST"],
+        name=f"stocksmaxxing_{_tool_name}",
+    )
 
 
 @api.get("/.well-known/agent-card.json")
