@@ -58,6 +58,17 @@ def mock_stocksmaxxing_upstream(monkeypatch):
             return MockResponse({"code": 5, "message": "not found"}, status=404)
         if "finance/chart" in url_s:
             return MockResponse(FIXTURE_DATA["yahoo_chart"])
+        if "geckoterminal.com" in url_s:
+            return MockResponse(
+                {
+                    "data": {
+                        "attributes": {
+                            "price_usd": "67.04",
+                            "volume_usd": {"h24": "1000.0"},
+                        }
+                    }
+                }
+            )
         if "coingecko" in url_s or "ping" in url_s:
             return MockResponse({})
         return MockResponse({})
@@ -86,6 +97,82 @@ async def test_tokenized_stock_list_sample(client):
     assert structured.get("success") is True
     tokens = (structured.get("data") or {}).get("tokens") or []
     assert any(t.get("symbol") == "CRCLc" for t in tokens)
+
+
+@pytest.mark.asyncio
+async def test_research_brief_includes_proof_of_research_receipt():
+    from app.stocksmaxxing.executor import execute_stocksmaxxing_tool
+
+    result = await execute_stocksmaxxing_tool(
+        "tokenized_stock_research_brief", {"symbols": ["CRCLc"]}
+    )
+    assert result["success"] is True
+    receipt = result["data"]["proof_of_research_receipt"]
+    assert receipt["content_hash"].startswith("0x")
+    assert len(receipt["content_hash"]) == 66
+    assert receipt["canonical_attestation"]["symbols"] == ["CRCLc"]
+
+
+@pytest.mark.asyncio
+async def test_canonical_hash_stable():
+    from app.stocksmaxxing.research_receipt import build_attestation_payload, sha256_hex
+
+    body = build_attestation_payload(
+        symbols=["CRCLc"],
+        sections=[{"symbol": "CRCLc", "summary": "test"}],
+        data_sources=["a", "b"],
+        generated_at="2026-11-10T10:00:00+00:00",
+    )
+    h1 = sha256_hex(body)
+    h2 = sha256_hex(body)
+    assert h1 == h2
+
+
+@pytest.mark.asyncio
+async def test_seal_receipt_prepared_without_registry():
+    from app.stocksmaxxing.services import tokenized_stock_seal_receipt_endpoint
+
+    out = await tokenized_stock_seal_receipt_endpoint(
+        content_hash="0x" + "ab" * 32,
+        brief_id="cafebabe",
+    )
+    assert out["success"] is True
+    assert out["data"]["seal"]["status"] == "registry_not_configured"
+
+
+@pytest.mark.asyncio
+async def test_verify_receipt_public(client):
+    from app.stocksmaxxing.research_receipt import build_attestation_payload, sha256_hex
+
+    body = build_attestation_payload(
+        symbols=["CRCLc"],
+        sections=[{"symbol": "CRCLc"}],
+        data_sources=["https://api.coinbase.com/v1/tokenized-stocks", "yahoo"],
+        generated_at="2026-11-10T10:00:00+00:00",
+    )
+    ch = sha256_hex(body)
+    response = await client.post(
+        "/stocksmaxxing/verify-receipt",
+        json={"canonical_attestation": body, "content_hash": ch},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["hash_matches_payload"] is True
+    assert payload["computed_hash"] == ch
+
+
+@pytest.mark.asyncio
+async def test_peg_gap_radar_executor():
+    from app.stocksmaxxing.executor import execute_stocksmaxxing_tool
+
+    result = await execute_stocksmaxxing_tool(
+        "tokenized_stock_peg_gap_radar",
+        {"alert_threshold_pct": 0.01, "symbols": ["CRCLc"]},
+    )
+    assert result["success"] is True
+    rows = result["data"]["rows"]
+    assert len(rows) == 1
+    assert rows[0].get("gap_pct") is not None
 
 
 @pytest.mark.asyncio

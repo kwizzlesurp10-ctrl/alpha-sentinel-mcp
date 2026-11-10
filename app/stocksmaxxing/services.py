@@ -13,6 +13,11 @@ from app.stocksmaxxing.coinbase_client import (
 )
 from app.stocksmaxxing.disclaimer import with_disclaimer
 from app.stocksmaxxing.result import Err, Ok
+from app.stocksmaxxing.onchain_price import fetch_onchain_price_usd
+from app.stocksmaxxing.peg_gap import build_peg_gap_rows
+from app.stocksmaxxing.research_receipt import build_proof_of_research_receipt
+from app.stocksmaxxing.seal_registry import seal_receipt_on_base
+from app.stocksmaxxing.track_record import enqueue_receipt_for_track_record
 from app.stocksmaxxing.underlying_equity import fetch_underlying_for_tokenized_symbol
 
 
@@ -172,16 +177,83 @@ async def tokenized_stock_research_brief_endpoint(symbols: list[str]) -> dict[st
                 "isin": rec.get("isin"),
             }
         )
+    data_sources = [
+        "https://api.coinbase.com/v1/tokenized-stocks",
+        settings.underlying_equity_price_provider,
+    ]
+    generated_at = datetime.now(UTC).isoformat()
+    receipt = build_proof_of_research_receipt(
+        symbols=symbols[:10],
+        sections=sections,
+        data_sources=data_sources,
+        generated_at=generated_at,
+    )
+    enqueue_receipt_for_track_record(receipt)
     return _ok_payload(
         {
             "sections": sections,
             "brief_type": "tokenized_stock_research",
-            "data_sources": [
-                "https://api.coinbase.com/v1/tokenized-stocks",
-                settings.underlying_equity_price_provider,
-            ],
+            "data_sources": data_sources,
+            "proof_of_research_receipt": receipt,
         }
     )
+
+
+async def tokenized_stock_seal_receipt_endpoint(
+    *,
+    content_hash: str,
+    brief_id: str | None = None,
+) -> dict[str, Any]:
+    content_hash = content_hash.strip()
+    if not content_hash.startswith("0x") or len(content_hash) != 66:
+        return _err_payload(
+            Err(code="invalid_content_hash", message="content_hash must be 0x-prefixed 32-byte hex")
+        )
+    try:
+        seal = await seal_receipt_on_base(content_hash=content_hash, brief_id=brief_id)
+    except ValueError as exc:
+        return _err_payload(Err(code="seal_config_error", message=str(exc)))
+    return _ok_payload(
+        {
+            "seal": seal,
+            "attestation_type": "research_receipt_registry",
+            "contract_source": "app/stocksmaxxing/contracts/ResearchReceiptRegistry.sol",
+        }
+    )
+
+
+async def tokenized_stock_peg_gap_radar_endpoint(
+    *,
+    alert_threshold_pct: float = 2.0,
+    page_size: int = 40,
+    symbols: list[str] | None = None,
+) -> dict[str, Any]:
+    try:
+        rows, meta = await build_peg_gap_rows(
+            alert_threshold_pct=alert_threshold_pct,
+            page_size=page_size,
+            symbols=symbols,
+        )
+    except ValueError as exc:
+        return _err_payload(Err(code="peg_gap_error", message=str(exc)))
+    return _ok_payload({"rows": rows, "meta": meta, "dashboard_url": "/stocksmaxxing/peg-gap"})
+
+
+async def peg_gap_public_preview(
+    *,
+    alert_threshold_pct: float = 2.0,
+    page_size: int = 25,
+) -> dict[str, Any]:
+    """Unpaid radar slice for the dashboard (same data rules as paid tool)."""
+    try:
+        rows, meta = await build_peg_gap_rows(
+            alert_threshold_pct=alert_threshold_pct,
+            page_size=min(page_size, 40),
+            symbols=None,
+        )
+    except ValueError as exc:
+        return with_disclaimer({"success": False, "error": str(exc), "code": "peg_gap_error"})
+    return with_disclaimer({"success": True, "rows": rows, "meta": meta, "demo": False})
 
 
 async def tokenized_stock_model_portfolio_endpoint(

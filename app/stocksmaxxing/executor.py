@@ -31,6 +31,20 @@ async def execute_stocksmaxxing_tool(name: str, arguments: dict[str, Any]) -> di
         if isinstance(symbols, str):
             symbols = [symbols]
         return await services.tokenized_stock_research_brief_endpoint(list(symbols))
+    if name == "tokenized_stock_seal_receipt":
+        return await services.tokenized_stock_seal_receipt_endpoint(
+            content_hash=str(arguments.get("content_hash") or ""),
+            brief_id=arguments.get("brief_id"),
+        )
+    if name == "tokenized_stock_peg_gap_radar":
+        symbols = arguments.get("symbols")
+        if isinstance(symbols, str):
+            symbols = [symbols]
+        return await services.tokenized_stock_peg_gap_radar_endpoint(
+            alert_threshold_pct=float(arguments.get("alert_threshold_pct") or 2.0),
+            page_size=int(arguments.get("page_size") or 40),
+            symbols=list(symbols) if symbols else None,
+        )
     if name == "tokenized_stock_model_portfolio":
         symbols = arguments.get("symbols") or []
         if isinstance(symbols, str):

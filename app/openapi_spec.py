@@ -46,6 +46,11 @@ PUBLIC_FREE_PATHS = {
     "/tools/tokenized_stock_corporate_action/sample",
     "/tools/tokenized_stock_research_brief/sample",
     "/tools/tokenized_stock_model_portfolio/sample",
+    "/tools/tokenized_stock_seal_receipt/sample",
+    "/tools/tokenized_stock_peg_gap_radar/sample",
+    "/stocksmaxxing/peg-gap",
+    "/stocksmaxxing/api/peg-gap",
+    "/stocksmaxxing/verify-receipt",
 }
 
 

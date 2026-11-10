@@ -130,6 +130,20 @@ class Settings(BaseSettings):
     tokenized_stock_nav_max_age_hours: float = 24.0
     underlying_equity_price_provider: str = "yahoo"
     finnhub_api_key: str | None = None
+
+    onchain_price_provider: str = "geckoterminal"
+
+    stocksmaxxing_seal_chain: str = "base-sepolia"
+    stocksmaxxing_seal_allow_mainnet: bool = False
+    stocksmaxxing_seal_rpc_url: str | None = None
+    stocksmaxxing_seal_submit: bool = False
+    stocksmaxxing_seal_private_key: str | None = None
+    stocksmaxxing_seal_gas_limit: int = 120_000
+    stocksmaxxing_seal_max_fee_gwei: float = 0.05
+    stocksmaxxing_seal_priority_fee_gwei: float = 0.001
+    research_receipt_registry_address: str | None = None
+
+    peg_gap_default_alert_threshold_pct: float = 2.0
     x_api_key: str | None = None
     reddit_api_id: str | None = None
     reddit_api_secret: str | None = None
@@ -201,6 +215,7 @@ class Settings(BaseSettings):
         "trust_forwarded_host",
         "swarm_enabled",
         "swarm_allow_paid_inputs",
+        "stocksmaxxing_seal_allow_mainnet",
         mode="before",
     )
     @classmethod

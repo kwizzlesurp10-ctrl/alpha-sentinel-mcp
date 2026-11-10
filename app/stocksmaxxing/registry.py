@@ -110,6 +110,49 @@ STOCKSMAXXING_TOOL_SPECS: list[dict[str, Any]] = [
         "stocksmaxxing": True,
     },
     {
+        "name": "tokenized_stock_seal_receipt",
+        "description": f"""Seal a Proof-of-Research receipt hash on Base (ResearchReceiptRegistry).
+
+Prepares unsigned calldata by default; optional Sepolia submit via env. Not trading.
+
+{_STOCKS_DISCLAIMER}
+
+**Cost:** $0.03 USD per call""",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "content_hash": {"type": "string", "description": "0x-prefixed SHA-256 of canonical brief JSON"},
+                "brief_id": {"type": "string"},
+            },
+            "required": ["content_hash"],
+        },
+        "requires_env": False,
+        "tier_access": {"free": False, "pro": True},
+        "stocksmaxxing": True,
+    },
+    {
+        "name": "tokenized_stock_peg_gap_radar",
+        "description": f"""Peg-Gap Radar: onchain DEX price vs underlying reference, alerts over threshold %.
+
+{_STOCKS_DISCLAIMER}
+
+**Cost:** $0.03 USD per call""",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "alert_threshold_pct": {"type": "number", "default": 2.0, "minimum": 0.1, "maximum": 50.0},
+                "page_size": {"type": "integer", "default": 40, "minimum": 1, "maximum": 100},
+                "symbols": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+            },
+        },
+        "requires_env": False,
+        "tier_access": {"free": False, "pro": True},
+        "stocksmaxxing": True,
+    },
+    {
         "name": "tokenized_stock_model_portfolio",
         "description": f"""Model portfolio / rebalance suggestions (weights only — no orders).
 
@@ -149,6 +192,8 @@ STOCKSMAXXING_TOOL_PRICES: dict[str, str] = {
     "tokenized_stock_nav_deviation": "$0.02",
     "tokenized_stock_corporate_action": "$0.02",
     "tokenized_stock_research_brief": "$0.05",
+    "tokenized_stock_seal_receipt": "$0.03",
+    "tokenized_stock_peg_gap_radar": "$0.03",
     "tokenized_stock_model_portfolio": "$0.08",
 }
 

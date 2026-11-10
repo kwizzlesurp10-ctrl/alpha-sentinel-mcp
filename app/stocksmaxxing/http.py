@@ -75,6 +75,27 @@ async def http_tokenized_stock_research_brief(request: Request) -> dict[str, Any
     return await services.tokenized_stock_research_brief_endpoint(symbols)
 
 
+async def http_tokenized_stock_seal_receipt(request: Request) -> dict[str, Any]:
+    p = await _params(request)
+    content_hash = p.get("content_hash")
+    if not content_hash:
+        raise HTTPException(status_code=400, detail="content_hash is required")
+    return await services.tokenized_stock_seal_receipt_endpoint(
+        content_hash=str(content_hash),
+        brief_id=p.get("brief_id"),
+    )
+
+
+async def http_tokenized_stock_peg_gap_radar(request: Request) -> dict[str, Any]:
+    p = await _params(request)
+    symbols = _as_list(p.get("symbols")) or None
+    return await services.tokenized_stock_peg_gap_radar_endpoint(
+        alert_threshold_pct=float(p.get("alert_threshold_pct") or 2.0),
+        page_size=int(p.get("page_size") or 40),
+        symbols=symbols,
+    )
+
+
 async def http_tokenized_stock_model_portfolio(request: Request) -> dict[str, Any]:
     p = await _params(request)
     symbols = _as_list(p.get("symbols"))
@@ -97,5 +118,7 @@ STOCKSMAXXING_HTTP_HANDLERS: dict[str, Handler] = {
     "tokenized_stock_nav_deviation": http_tokenized_stock_nav_deviation,
     "tokenized_stock_corporate_action": http_tokenized_stock_corporate_action,
     "tokenized_stock_research_brief": http_tokenized_stock_research_brief,
+    "tokenized_stock_seal_receipt": http_tokenized_stock_seal_receipt,
+    "tokenized_stock_peg_gap_radar": http_tokenized_stock_peg_gap_radar,
     "tokenized_stock_model_portfolio": http_tokenized_stock_model_portfolio,
 }

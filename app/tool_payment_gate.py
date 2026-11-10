@@ -61,6 +61,13 @@ def _tool_discovery_example(tool_name: str) -> dict[str, Any]:
         return {"corporate_action_id": "e82812a6-0b24-41c4-8ed1-322d1b466d33"}
     if tool_name == "tokenized_stock_research_brief":
         return {"symbols": ["CRCLc", "RKTc"]}
+    if tool_name == "tokenized_stock_seal_receipt":
+        return {
+            "content_hash": "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "brief_id": "0000000000000001",
+        }
+    if tool_name == "tokenized_stock_peg_gap_radar":
+        return {"alert_threshold_pct": 2.0, "page_size": 10, "symbols": ["CRCLc"]}
     if tool_name == "tokenized_stock_model_portfolio":
         return {
             "symbols": ["CRCLc", "RKTc"],
