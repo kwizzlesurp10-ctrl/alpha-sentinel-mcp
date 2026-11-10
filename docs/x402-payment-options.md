@@ -30,9 +30,9 @@ Source for Circle USDC contract addresses: [USDC on main networks](https://devel
 
 | Alias | CAIP-2 | USDC contract |
 |-------|--------|-------------|
-| `polygon` | `eip155:137` | `0x3c499c542cEF5E3811e1192aDc88583889c8a4b` |
+| `polygon` | `eip155:137` | `0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359` |
 | `arbitrum` | `eip155:42161` | `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` |
-| `optimism` | `eip155:10` | `0x0b2C639c533813f4Aa9D7837CAa886fef1908FF7` |
+| `optimism` | `eip155:10` | `0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85` |
 
 Solana USDC is only advertised when `X402_SOLANA_PAY_TO` is set. The server never invents a Solana address.
 

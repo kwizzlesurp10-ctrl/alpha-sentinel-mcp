@@ -20,9 +20,9 @@ BASE_MAINNET_CAIP2 = "eip155:8453"
 # Circle USDC contract addresses on mainnet EVM chains (native USDC).
 # Primary source: https://developers.circle.com/stablecoins/usdc-on-main-networks
 USDC_EVM_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-USDC_EVM_POLYGON = "0x3c499c542cEF5E3811e1192aDc88583889c8a4b"
+USDC_EVM_POLYGON = "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359"
 USDC_EVM_ARBITRUM = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
-USDC_EVM_OPTIMISM = "0x0b2C639c533813f4Aa9D7837CAa886fef1908FF7"
+USDC_EVM_OPTIMISM = "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85"
 
 # Solana mainnet USDC (SPL); see Circle / Solana token list — only enabled with pay_to.
 USDC_SOLANA_MINT = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"

@@ -18,6 +18,14 @@ from app.payment_options import (
 )
 from app.payto_guard import CANONICAL_PAY_TO
 
+# Circle mainnet USDC — https://developers.circle.com/stablecoins/usdc-on-main-networks
+_CIRCLE_MAINNET_USDC: dict[str, str] = {
+    "eip155:8453": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+    "eip155:137": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+    "eip155:42161": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    "eip155:10": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+}
+
 
 @pytest.fixture(autouse=True)
 def _reset_payment_option_state(monkeypatch):
@@ -32,6 +40,19 @@ def _reset_payment_option_state(monkeypatch):
     yield
     set_facilitator_settleable_override(None)
     reset_counts_for_tests()
+
+
+def test_evm_usdc_addresses_match_circle_and_are_checksummed():
+    from eth_utils import is_checksum_address, to_checksum_address
+
+    from app.payment_options import EVM_PAYMENT_OPTIONS
+
+    for key, opt in EVM_PAYMENT_OPTIONS.items():
+        expected = _CIRCLE_MAINNET_USDC[opt.caip2]
+        assert opt.asset == expected, f"{key} asset must match Circle mainnet USDC"
+        assert len(opt.asset) == 42, f"{opt.asset} must be 0x + 40 hex chars"
+        assert is_checksum_address(opt.asset), opt.asset
+        assert to_checksum_address(opt.asset.lower()) == opt.asset, opt.asset
 
 
 def test_default_config_single_base_option(monkeypatch):
