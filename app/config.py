@@ -171,6 +171,8 @@ class Settings(BaseSettings):
     cdp_networks: str = "eip155:8453"
 
     x402_default_network: str = "eip155:8453"
+    x402_extra_networks: str = ""
+    x402_solana_pay_to: str | None = None
     revenue_network: str | None = None
     x402_default_price: str = "$0.01"
     x402_http_timeout: float = 90.0

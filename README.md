@@ -134,6 +134,8 @@ make up  # API (8403) + dashboard (5174)
 | `CDP_API_KEY_ID` | **yes** (mainnet) | Coinbase CDP x402 facilitator auth |
 | `CDP_API_KEY_SECRET` | **yes** (mainnet) | CDP Ed25519 secret for facilitator JWT |
 | `X402_DEFAULT_NETWORK` | **yes** | `eip155:8453` (Base mainnet) |
+| `X402_EXTRA_NETWORKS` | optional | Extra USDC rails in `accepts[]` (e.g. `polygon,arbitrum,optimism`) |
+| `X402_SOLANA_PAY_TO` | optional | Enables Solana USDC option when set |
 | `REVENUE_NETWORK` | recommended | Same as default; pins settlement rail |
 | `PUBLIC_BASE_URL` | **yes** | `https://alpha-sentinel-mcp.vercel.app` |
 | `OPERATOR_TOKEN` | recommended | Protects `/ledger/*`; cross-agent `/quota` |
@@ -144,6 +146,8 @@ make up  # API (8403) + dashboard (5174)
 Never set `EVM_PRIVATE_KEY` on the server (buyer key stays local).
 
 See `.env.example` for the full list (names only).
+
+**Multi-option payments:** Paid tools advertise multiple USDC rails at the same price; usage is ranked most-used-first (Base tie-break). See [docs/x402-payment-options.md](docs/x402-payment-options.md).
 
 **Vercel routing:** Root `vercel.json` rewrites `/health`, `/.well-known/*`, `/mcp`, `/tools/*`, `/llms.txt`, and related API paths to `api/index.py` **before** the Mission Control SPA `index.html` fallback. All intelligence HTTP tools (including `fetch_price`) require x402 payment in production.
 

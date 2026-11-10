@@ -218,6 +218,22 @@ Perfect for daily briefings or strategic planning.
         "requires_env": False,
         "tier_access": {"free": False, "pro": True},
     },
+    {
+        "name": "payment_option_usage",
+        "description": """Read-only x402 payment-option analytics.
+
+Returns how often buyers paid with each advertised USDC rail (network + asset).
+Seller challenges rank ``accepts[]`` most-used-first (Base USDC tie-break).
+
+**Cost:** Free — no x402 payment required.""",
+        "inputSchema": {
+            "type": "object",
+            "properties": {},
+            "additionalProperties": False,
+        },
+        "requires_env": False,
+        "tier_access": {"free": True, "pro": True},
+    },
 ]
 
 from app.stocksmaxxing.registry import (
