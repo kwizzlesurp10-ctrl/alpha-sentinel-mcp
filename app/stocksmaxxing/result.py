@@ -3,13 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Generic, TypeVar
-
-T = TypeVar("T")
 
 
 @dataclass(frozen=True)
-class Ok(Generic[T]):
+class Ok[T]:
     value: T
 
 
@@ -20,8 +17,8 @@ class Err:
     hint: str | None = None
 
 
-Result = Ok[T] | Err
+type Result[T] = Ok[T] | Err
 
 
-def is_ok(result: Result[T]) -> bool:
+def is_ok[T](result: Result[T]) -> bool:
     return isinstance(result, Ok)

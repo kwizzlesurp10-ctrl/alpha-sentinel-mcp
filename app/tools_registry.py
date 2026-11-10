@@ -220,7 +220,7 @@ Perfect for daily briefings or strategic planning.
     },
 ]
 
-from app.stocksmaxxing.registry import (  # noqa: E402
+from app.stocksmaxxing.registry import (
     STOCKSMAXXING_TOOL_HTTP_PATHS,
     STOCKSMAXXING_TOOL_PRICES,
     STOCKSMAXXING_TOOL_SPECS,

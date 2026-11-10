@@ -86,7 +86,7 @@ class CoinbaseTokenizedStocksClient:
                 message=f"Tokenized stock '{sym}' not found in Coinbase catalog",
                 hint="Use tokenized_stock_list to browse available symbols",
             )
-        return Ok(meta)
+        return meta
 
     async def _get_json(self, path: str, params: dict[str, Any] | None = None) -> Result[dict[str, Any]]:
         url = f"{self._base}{path}"
@@ -127,7 +127,7 @@ def parse_nav_staleness(nav_updated_at: str | None, *, max_age_hours: float) -> 
     if not nav_updated_at:
         return {"stale": True, "age_hours": None, "reason": "nav_price_updated_at missing"}
     try:
-        updated = datetime.fromisoformat(nav_updated_at.replace("Z", "+00:00"))
+        updated = datetime.fromisoformat(nav_updated_at)
     except ValueError:
         return {"stale": True, "age_hours": None, "reason": "invalid nav timestamp"}
     age = (datetime.now(UTC) - updated.astimezone(UTC)).total_seconds() / 3600.0

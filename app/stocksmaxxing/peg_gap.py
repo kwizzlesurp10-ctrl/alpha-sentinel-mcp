@@ -5,7 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from app.config import settings
-from app.stocksmaxxing.coinbase_client import CoinbaseTokenizedStocksClient, parse_nav_staleness
+from app.stocksmaxxing.coinbase_client import (
+    CoinbaseTokenizedStocksClient,
+    parse_nav_staleness,
+)
 from app.stocksmaxxing.onchain_price import fetch_onchain_price_usd
 from app.stocksmaxxing.result import Err, Ok
 from app.stocksmaxxing.underlying_equity import fetch_underlying_for_tokenized_symbol

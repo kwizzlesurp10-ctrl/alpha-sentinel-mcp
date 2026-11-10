@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.stocksmaxxing.disclaimer import with_disclaimer
-from app.stocksmaxxing.research_receipt import sha256_hex, verify_content_hash
+from app.stocksmaxxing.research_receipt import sha256_hex
 from app.stocksmaxxing.seal_registry import verify_receipt_onchain
 
 
@@ -16,12 +16,12 @@ async def verify_research_receipt_endpoint(
     brief_id: str | None = None,
 ) -> dict[str, Any]:
     if not canonical_attestation:
-        body = {
+        err_body = {
             "success": False,
             "code": "attestation_required",
             "error": "Provide canonical_attestation JSON to recompute the content hash",
         }
-        return with_disclaimer(body)
+        return with_disclaimer(err_body)
 
     computed_hash = sha256_hex(canonical_attestation)
     claimed_hash = (content_hash or computed_hash).lower()

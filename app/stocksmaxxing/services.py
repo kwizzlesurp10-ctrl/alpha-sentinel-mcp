@@ -12,10 +12,9 @@ from app.stocksmaxxing.coinbase_client import (
     underlying_equity_ticker,
 )
 from app.stocksmaxxing.disclaimer import with_disclaimer
-from app.stocksmaxxing.result import Err, Ok
-from app.stocksmaxxing.onchain_price import fetch_onchain_price_usd
 from app.stocksmaxxing.peg_gap import build_peg_gap_rows
 from app.stocksmaxxing.research_receipt import build_proof_of_research_receipt
+from app.stocksmaxxing.result import Err, Ok
 from app.stocksmaxxing.seal_registry import seal_receipt_on_base
 from app.stocksmaxxing.track_record import enqueue_receipt_for_track_record
 from app.stocksmaxxing.underlying_equity import fetch_underlying_for_tokenized_symbol

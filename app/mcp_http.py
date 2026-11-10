@@ -92,8 +92,8 @@ async def _execute_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
             symbols,
             str(arguments.get("format") or "json"),
         )
-    from app.stocksmaxxing.registry import STOCKSMAXXING_TOOL_NAMES
     from app.stocksmaxxing.executor import execute_stocksmaxxing_tool
+    from app.stocksmaxxing.registry import STOCKSMAXXING_TOOL_NAMES
 
     if name in STOCKSMAXXING_TOOL_NAMES:
         return await execute_stocksmaxxing_tool(name, arguments)

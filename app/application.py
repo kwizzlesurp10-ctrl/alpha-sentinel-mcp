@@ -621,7 +621,7 @@ async def http_generate_market_report(request: Request):
     return await _http_generate_report(request)
 
 
-from app.stocksmaxxing.http import STOCKSMAXXING_HTTP_HANDLERS  # noqa: E402
+from app.stocksmaxxing.http import STOCKSMAXXING_HTTP_HANDLERS
 
 for _tool_name, _handler in STOCKSMAXXING_HTTP_HANDLERS.items():
     api.add_api_route(
