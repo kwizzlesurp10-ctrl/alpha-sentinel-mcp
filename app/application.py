@@ -425,6 +425,23 @@ SAMPLE_INPUTS: dict[str, dict] = {
         "symbols": ["btc", "eth"],
         "format": "json",
     },
+    "tokenized_stock_list": {"query": "circle", "page_size": 5},
+    "tokenized_stock_lookup": {"symbol": "CRCLc"},
+    "tokenized_stock_nav_deviation": {"symbol": "CRCLc"},
+    "tokenized_stock_corporate_action": {
+        "corporate_action_id": "e82812a6-0b24-41c4-8ed1-322d1b466d33",
+    },
+    "tokenized_stock_research_brief": {"symbols": ["CRCLc", "RKTc"]},
+    "tokenized_stock_seal_receipt": {
+        "content_hash": "0x0000000000000000000000000000000000000000000000000000000000000001",
+        "brief_id": "0000000000000001",
+    },
+    "tokenized_stock_peg_gap_radar": {"alert_threshold_pct": 2.0, "page_size": 10, "symbols": ["CRCLc"]},
+    "tokenized_stock_model_portfolio": {
+        "symbols": ["CRCLc", "RKTc"],
+        "current_weights": {"CRCLc": 0.6, "RKTc": 0.4},
+        "objective": "balanced",
+    },
 }
 
 
@@ -602,6 +619,72 @@ async def http_generate_report(request: Request):
 @api.post("/tools/generate_market_report")
 async def http_generate_market_report(request: Request):
     return await _http_generate_report(request)
+
+
+from app.stocksmaxxing.http import STOCKSMAXXING_HTTP_HANDLERS
+
+for _tool_name, _handler in STOCKSMAXXING_HTTP_HANDLERS.items():
+    api.add_api_route(
+        f"/tools/{_tool_name}",
+        _handler,
+        methods=["GET", "POST"],
+        name=f"stocksmaxxing_{_tool_name}",
+    )
+
+
+_STOCKSMAXXING_STATIC = _STATIC_DIR / "stocksmaxxing"
+
+
+@api.get("/stocksmaxxing/peg-gap", response_class=HTMLResponse, include_in_schema=False)
+async def stocksmaxxing_peg_gap_dashboard():
+    """Peg-Gap Radar visual (research only)."""
+    page = _STOCKSMAXXING_STATIC / "peg-gap.html"
+    if not page.is_file():
+        raise HTTPException(status_code=404, detail="peg-gap dashboard not found")
+    return HTMLResponse(content=page.read_text(encoding="utf-8"))
+
+
+@api.get("/stocksmaxxing/api/peg-gap")
+async def stocksmaxxing_peg_gap_public_api(
+    request: Request,
+    alert_threshold_pct: float = Query(default=2.0, ge=0.1, le=50.0),
+    page_size: int = Query(default=25, ge=1, le=40),
+):
+    client = request.client.host if request.client else "unknown"
+    if not allow_free_request(client):
+        return JSONResponse(
+            status_code=429,
+            content={"error": "rate_limit_exceeded", "retry_after_seconds": 60},
+        )
+    from app.stocksmaxxing.services import peg_gap_public_preview
+
+    return await peg_gap_public_preview(alert_threshold_pct=alert_threshold_pct, page_size=page_size)
+
+
+@api.get("/stocksmaxxing/verify-receipt")
+@api.post("/stocksmaxxing/verify-receipt")
+async def stocksmaxxing_verify_receipt(request: Request):
+    """Public verify: recompute canonical hash and read onchain sealedAt (if configured)."""
+    client = request.client.host if request.client else "unknown"
+    if not allow_free_request(client):
+        return JSONResponse(
+            status_code=429,
+            content={"error": "rate_limit_exceeded", "retry_after_seconds": 60},
+        )
+    params = await _request_params(request)
+    attestation = params.get("canonical_attestation")
+    if isinstance(attestation, str):
+        try:
+            attestation = json.loads(attestation)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    from app.stocksmaxxing.verify import verify_research_receipt_endpoint
+
+    return await verify_research_receipt_endpoint(
+        canonical_attestation=attestation if isinstance(attestation, dict) else None,
+        content_hash=params.get("content_hash"),
+        brief_id=params.get("brief_id"),
+    )
 
 
 @api.get("/.well-known/agent-card.json")

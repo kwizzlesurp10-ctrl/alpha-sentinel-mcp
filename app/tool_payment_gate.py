@@ -51,6 +51,29 @@ def _tool_discovery_example(tool_name: str) -> dict[str, Any]:
         return {"symbols": ["btc", "eth"], "include_factors": ["volatility", "liquidity"]}
     if tool_name == "generate_market_report":
         return {"report_type": "daily", "symbols": ["btc", "eth"], "format": "json"}
+    if tool_name == "tokenized_stock_list":
+        return {"query": "circle", "page_size": 10}
+    if tool_name == "tokenized_stock_lookup":
+        return {"symbol": "CRCLc"}
+    if tool_name == "tokenized_stock_nav_deviation":
+        return {"symbol": "CRCLc"}
+    if tool_name == "tokenized_stock_corporate_action":
+        return {"corporate_action_id": "e82812a6-0b24-41c4-8ed1-322d1b466d33"}
+    if tool_name == "tokenized_stock_research_brief":
+        return {"symbols": ["CRCLc", "RKTc"]}
+    if tool_name == "tokenized_stock_seal_receipt":
+        return {
+            "content_hash": "0x0000000000000000000000000000000000000000000000000000000000000001",
+            "brief_id": "0000000000000001",
+        }
+    if tool_name == "tokenized_stock_peg_gap_radar":
+        return {"alert_threshold_pct": 2.0, "page_size": 10, "symbols": ["CRCLc"]}
+    if tool_name == "tokenized_stock_model_portfolio":
+        return {
+            "symbols": ["CRCLc", "RKTc"],
+            "current_weights": {"CRCLc": 0.6, "RKTc": 0.4},
+            "objective": "balanced",
+        }
     return {}
 
 

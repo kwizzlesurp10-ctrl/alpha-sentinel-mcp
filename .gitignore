@@ -80,3 +80,6 @@ node_modules/
 dashboard/node_modules/
 dashboard/dist/
 *.tsbuildinfo
+
+# Local CI tooling (downloaded in GitHub Actions, not versioned)
+/gitleaks

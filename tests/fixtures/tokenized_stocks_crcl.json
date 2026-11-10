@@ -1,0 +1,48 @@
+{
+  "list_page": {
+    "tokens": [
+      {
+        "contract_address": "0xB20000000000000000000019f6E7C675b73C2e4D",
+        "symbol": "CRCLc",
+        "name": "Circle Internet Group Inc.",
+        "decimals": 8,
+        "isin": "US1725731079",
+        "multiplier": 1,
+        "nav_price": 67.1,
+        "nav_price_updated_at": "2026-11-10T10:16:14Z"
+      }
+    ],
+    "next_page_token": null
+  },
+  "metadata": {
+    "contract_address": "0xB20000000000000000000019f6E7C675b73C2e4D",
+    "symbol": "CRCLc",
+    "name": "Circle Internet Group Inc.",
+    "prospectus_url": "https://api.coinbase.com/v1/tokenized-stocks/prospectus/CRCLc.pdf"
+  },
+  "chains": {
+    "chains": [
+      {
+        "chain_id": "8453",
+        "chain": "base"
+      }
+    ]
+  },
+  "corporate_action": {
+    "description": "Cash dividend (fixture)",
+    "status": "CORPORATE_ACTION_STATUS_ANNOUNCED"
+  },
+  "yahoo_chart": {
+    "chart": {
+      "result": [
+        {
+          "meta": {
+            "regularMarketPrice": 67.56,
+            "currency": "USD",
+            "exchangeName": "NMS"
+          }
+        }
+      ]
+    }
+  }
+}

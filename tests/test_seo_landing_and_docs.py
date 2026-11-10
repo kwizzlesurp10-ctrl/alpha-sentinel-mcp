@@ -10,7 +10,10 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from app.application import app
+from app.stocksmaxxing.registry import STOCKSMAXXING_TOOL_NAMES
 from app.tools_registry import EXPECTED_TOOL_NAMES
+
+LANDING_PAGE_TOOL_NAMES = [t for t in EXPECTED_TOOL_NAMES if t not in STOCKSMAXXING_TOOL_NAMES]
 
 
 @pytest_asyncio.fixture
@@ -39,10 +42,11 @@ async def test_semantic_landing_page_human_seo(client):
     ):
         assert kw in html, f"Missing keyword cluster '{kw}' on landing page"
 
-    # 3. Tool Directory with all 5 tools and internal links
-    for tool in EXPECTED_TOOL_NAMES:
+    # 3. Tool directory lists legacy crypto intel tools (stocksmaxxing tools live under /tools/* + docs/stocksmaxxing.md)
+    for tool in LANDING_PAGE_TOOL_NAMES:
         assert tool in html, f"Missing tool '{tool}' in landing page directory"
         assert f"/tools/{tool}" in html, f"Missing internal link to /tools/{tool}"
+    assert "stocksmaxxing" in html.lower() or "/docs/stocksmaxxing" in html
 
     # 4. Internal links to Playbooks and Protocol Manifests
     for link in (
