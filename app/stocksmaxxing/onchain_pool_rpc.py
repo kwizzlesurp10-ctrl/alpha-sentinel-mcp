@@ -25,11 +25,12 @@ WETH_USDC_POOL = "0xd0b53D9277642d8994115D87b615aB58570feE5"  # Aerodrome Slipst
 
 
 async def _eth_call(rpc_url: str, to: str, data: str) -> bytes:
+    from hexbytes import HexBytes
     from web3 import Web3
 
     def _call() -> bytes:
         w3 = Web3(Web3.HTTPProvider(rpc_url, request_kwargs={"timeout": 12}))
-        raw = w3.eth.call({"to": Web3.to_checksum_address(to), "data": data})
+        raw = w3.eth.call({"to": Web3.to_checksum_address(to), "data": HexBytes(data)})
         return bytes(raw)
 
     return await asyncio.to_thread(_call)
