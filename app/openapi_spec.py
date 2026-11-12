@@ -21,6 +21,7 @@ from app.tools_registry import (
 )
 
 PUBLIC_FREE_PATHS = {
+    "/x402/payment-options/usage",
     "/health",
     "/llms.txt",
     "/catalog",
