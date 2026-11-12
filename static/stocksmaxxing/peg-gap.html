@@ -10,6 +10,8 @@
     table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.92rem; }
     th, td { border-bottom: 1px solid #243042; padding: 0.5rem 0.4rem; text-align: left; }
     .alert { color: #ffb347; font-weight: 600; }
+    .watching { color: #9fb0c3; font-style: italic; }
+    #base-summary { margin-top: 0.35rem; font-size: 0.95rem; color: #c5d4e3; }
     .disclaimer { margin-top: 1.5rem; font-size: 0.85rem; color: #9fb0c3; max-width: 52rem; }
     input { margin-left: 0.5rem; padding: 0.25rem; }
     #status { margin-top: 0.75rem; color: #9fb0c3; }
@@ -23,6 +25,7 @@
   </label>
   <button id="refresh" type="button">Refresh</button>
   <p id="status">Loading…</p>
+  <p id="base-summary" aria-live="polite"></p>
   <table>
     <thead>
       <tr>
@@ -60,7 +63,10 @@
           const alert = row.peg_gap_alert ? '<span class="alert">YES</span>' : 'no';
           const liq = row.onchain_liquidity_usd != null ? '$' + Math.round(row.onchain_liquidity_usd).toLocaleString() : '—';
           const pool = row.onchain_pool_address ? row.onchain_pool_address.slice(0, 10) + '…' : '—';
-          const status = row.onchain_market_status === 'priced' ? 'priced' : (row.onchain_price_error || 'no market');
+          const isPriced = row.onchain_market_status === 'priced';
+          const status = isPriced
+            ? 'priced'
+            : '<span class="watching">No Base market yet, watching</span>';
           return `<tr>
             <td>${row.symbol || ''}</td>
             <td>${row.onchain_price_usd != null ? row.onchain_price_usd.toFixed(4) : 'n/a'}</td>
@@ -73,7 +79,10 @@
           </tr>`;
         }).join('');
         const priced = body.meta?.onchain_priced_count ?? rows.filter(r => r.onchain_market_status === 'priced').length;
-        status.textContent = `${rows.length} rows · onchain priced: ${priced} · alerts: ${body.meta?.alerts_triggered ?? 0}`;
+        const total = rows.length;
+        document.getElementById('base-summary').textContent =
+          `${priced} of ${total} tokenized stocks trade on Base today`;
+        status.textContent = `${total} rows · alerts: ${body.meta?.alerts_triggered ?? 0}`;
       } catch (e) {
         status.textContent = 'Error: ' + e.message;
         tbody.innerHTML = '';

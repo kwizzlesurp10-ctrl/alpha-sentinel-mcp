@@ -38,7 +38,7 @@ async def test_semantic_landing_page_human_seo(client):
         "Predictive Alpha",
         "On-chain Market Intelligence",
         "x402 Monetized API",
-        "Autonomous Trading Data",
+        "Agent-Ready Market Research Data",
     ):
         assert kw in html, f"Missing keyword cluster '{kw}' on landing page"
 
@@ -114,13 +114,13 @@ async def test_long_tail_seo_playbooks_docs(client):
     assert hub.status_code == 200
     assert "text/html" in (hub.headers.get("content-type") or "").lower()
     assert "How to automate volatility alerts using Alpha Sentinel" in hub.text
-    assert "Integrating predictive alpha into an autonomous trading agent" in hub.text
-    assert "Reducing slippage with real-time sentiment analysis" in hub.text
+    assert "Integrating predictive alpha into an autonomous research agent" in hub.text
+    assert "Grounding agent research with real-time sentiment analysis" in hub.text
 
     playbooks = {
         "/docs/automate-volatility-alerts": "How to automate volatility alerts using Alpha Sentinel",
-        "/docs/integrate-predictive-alpha": "Integrating predictive alpha into an autonomous trading agent",
-        "/docs/reduce-slippage-sentiment": "Reducing slippage with real-time sentiment analysis",
+        "/docs/integrate-predictive-alpha": "Integrating predictive alpha into an autonomous research agent",
+        "/docs/reduce-slippage-sentiment": "Grounding agent research with real-time sentiment analysis",
     }
     for path, expected_h1 in playbooks.items():
         r = await client.get(path)

@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reducing slippage with real-time sentiment analysis — Playbook 03 | Alpha Sentinel Docs</title>
+    <title>Grounding agent research with real-time sentiment analysis — Playbook 03 | Alpha Sentinel Docs</title>
     <meta name="description" content="Execution engineering playbook on reducing DEX and CEX slippage with real-time sentiment analysis using Alpha Sentinel's aggregate_sentiment, analyze_volatility, and calculate_risk_score tools.">
-    <meta name="keywords" content="Reducing slippage with real-time sentiment analysis, aggregate_sentiment, crypto TWAP VWAP execution agent, DEX slippage reduction, Alpha Sentinel MCP, x402 Base USDC">
+    <meta name="keywords" content="Grounding agent research with real-time sentiment analysis, aggregate_sentiment, crypto TWAP VWAP execution agent, DEX slippage reduction, Alpha Sentinel MCP, x402 Base USDC">
     <link rel="canonical" href="https://alpha-sentinel-mcp.vercel.app/docs/reduce-slippage-sentiment">
     <script type="application/ld+json">
     {
@@ -13,7 +13,7 @@
       "@graph": [
         {
           "@type": "TechArticle",
-          "headline": "Reducing slippage with real-time sentiment analysis",
+          "headline": "Grounding agent research with real-time sentiment analysis",
           "description": "Deep-dive playbook showing how autonomous execution agents use aggregate_sentiment (across Twitter/X, Reddit, Telegram, and news) alongside analyze_volatility and calculate_risk_score to detect social momentum surges and liquidity thinning before placing large orders, splitting orders (TWAP/VWAP) or delaying execution to minimize DEX/CEX slippage.",
           "author": {
             "@type": "Organization",
@@ -29,7 +29,7 @@
         },
         {
           "@type": "HowTo",
-          "name": "Reducing slippage with real-time sentiment analysis",
+          "name": "Grounding agent research with real-time sentiment analysis",
           "description": "Minimize DEX/CEX execution slippage by combining social sentiment polarity, statistical volatility Z-scores, and liquidity risk scores before routing large orders.",
           "step": [
             {
@@ -220,7 +220,7 @@
         <span class="badge badge-primary">Tool: aggregate_sentiment ($0.01 USDC)</span>
         <span class="badge badge-primary">TWAP / VWAP Execution Routing</span>
 
-        <h1>Reducing slippage with real-time sentiment analysis</h1>
+        <h1>Grounding agent research with real-time sentiment analysis</h1>
 
         <p>
             When an autonomous execution agent submits a large market order or single-block AMM swap during a narrative-driven social momentum surge, market makers widen spreads and MEV searchers sandwich the transaction—resulting in 40 to 250 bps of avoidable execution slippage. This engineering playbook demonstrates <strong>reducing slippage with real-time sentiment analysis</strong> by combining Alpha Sentinel's <code>aggregate_sentiment</code> tool (<code>$0.01 USDC</code>) with <code>analyze_volatility</code> (<code>$0.02 USDC</code>) and <code>calculate_risk_score</code> (<code>$0.03 USDC</code>) to detect crowd-driven order-book thinning and dynamically select between single-fill execution, Time-Weighted Average Price (TWAP) / Volume-Weighted Average Price (VWAP) child-order slicing, or temporary execution deferral.
@@ -582,7 +582,7 @@ if __name__ == "__main__":
             </div>
             <div class="playbook-link-card">
                 <div style="font-size: 0.8rem; color: var(--muted);">PLAYBOOK 02</div>
-                <a href="/docs/integrate-predictive-alpha"><strong>← Integrating predictive alpha into an autonomous trading agent</strong></a>
+                <a href="/docs/integrate-predictive-alpha"><strong>← Integrating predictive alpha into an autonomous research agent</strong></a>
                 <p style="font-size: 0.88rem; margin: 6px 0 0;">Full 5-tool LangGraph, Claude MCP, and A2A trading loop.</p>
             </div>
             <div class="playbook-link-card">

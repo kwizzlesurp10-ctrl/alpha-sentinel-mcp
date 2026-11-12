@@ -5,12 +5,12 @@
   "name": "io.github.kwizzlesurp10-ctrl/alpha-sentinel-mcp",
   "title": "Alpha Sentinel \u2014 Predictive Alpha & On-chain Market Intelligence",
   "version": "0.2.0",
-  "description": "Autonomous Trading Data & On-chain Market Intelligence MCP Server. Provides statistical Z-score volatility alerts, multi-source sentiment aggregation, multi-factor crypto risk scoring, and executive market intelligence reports via x402 Monetized API (USDC on Base).",
+  "description": "Agent-Ready Market Research Data & On-chain Market Intelligence MCP Server. Provides statistical Z-score volatility alerts, multi-source sentiment aggregation, multi-factor crypto risk scoring, and executive market intelligence reports via x402 Monetized API (USDC on Base).",
   "keywords": [
     "Predictive Alpha",
     "On-chain Market Intelligence",
     "x402 Monetized API",
-    "Autonomous Trading Data",
+    "Agent-Ready Market Research Data",
     "Crypto Volatility Alerts",
     "Sentiment Aggregation",
     "MCP Server",
@@ -61,7 +61,7 @@
       "args": [
         "run_stdio.py"
       ],
-      "description": "Alpha Sentinel \u2014 Predictive Alpha & On-chain Market Intelligence (x402 Monetized API for Autonomous Trading Data)",
+      "description": "Alpha Sentinel \u2014 Predictive Alpha & On-chain Market Intelligence (x402 Monetized API for Agent-Ready Market Research Data)",
       "tools": [
         {
           "name": "fetch_price",
