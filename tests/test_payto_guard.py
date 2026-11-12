@@ -76,6 +76,43 @@ async def test_build_seller_requirements_local_fallback_has_usdc_extra(monkeypat
     assert amount == "5000"
 
 
+def test_seller_pay_to_defaults_to_canonical(monkeypatch):
+    from app.config import settings
+    from app.payments import seller_pay_to
+
+    monkeypatch.setattr(settings, "x402_pay_to_address", None)
+    assert seller_pay_to() == CANONICAL_PAY_TO
+
+
+def test_settings_default_pay_to_is_canonical(monkeypatch):
+    monkeypatch.delenv("X402_PAY_TO_ADDRESS", raising=False)
+    monkeypatch.delenv("X402_PAY_TO", raising=False)
+    from app.config import Settings
+
+    fresh = Settings()
+    assert fresh.x402_pay_to_address == CANONICAL_PAY_TO
+
+
+@pytest.mark.asyncio
+async def test_unpaid_http_402_advertises_canonical_pay_to(monkeypatch):
+    from httpx import ASGITransport, AsyncClient
+
+    from app.application import app
+    from app.config import settings
+
+    monkeypatch.setattr(settings, "x402_pay_to_address", CANONICAL_PAY_TO)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post("/tools/fetch_price", json={"symbol": "btc"})
+    assert response.status_code == 402
+    body = response.json()
+    assert body.get("payTo") == CANONICAL_PAY_TO
+    assert body.get("network") == "eip155:8453"
+    accepts = body.get("accepts") or []
+    assert accepts
+    assert accepts[0].get("payTo") == CANONICAL_PAY_TO
+    assert accepts[0].get("asset") == "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+
+
 def test_setup_script_default_is_canonical():
     with open("setup-payment-address.sh", encoding="utf-8") as fh:
         text = fh.read()
