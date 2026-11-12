@@ -2,12 +2,20 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
 from app.config import settings
 from app.stocksmaxxing.onchain_pool_rpc import rpc_pool_price_usd
-from app.stocksmaxxing.onchain_price_cache import get_cached, set_cached
+from app.stocksmaxxing.onchain_price_cache import (
+    get_cached,
+    get_negative_cached,
+    hydrate_cached_from_kv,
+    persist_cached_to_kv,
+    set_cached,
+    set_negative_cached,
+)
 from app.stocksmaxxing.onchain_price_sources import (
     PoolQuoteCandidate,
     dexscreener_search_pairs,
@@ -101,37 +109,33 @@ async def _pick_from_list(
     return Err(code="all_candidates_rejected", message=last_reason)
 
 
-async def resolve_onchain_price_usd(
+async def _resolve_inner(
     contract_address: str,
     *,
-    symbol: str | None = None,
+    symbol: str | None,
 ) -> Result[dict[str, Any]]:
-    """Resolve a Base onchain USD price using real market data only."""
-    ttl = int(settings.peg_gap_onchain_cache_ttl_seconds)
-    key = _cache_key(contract_address, symbol)
-    cached = get_cached(key, ttl)
-    if isinstance(cached, dict):
-        return Ok(cached)
-
     attempts: list[str] = []
     sym = (symbol or "").strip()
+    label = sym or contract_address[:8]
 
-    gt_token = await geckoterminal_token_price(contract_address)
+    gt_token, gt_pools, ds_token = await asyncio.gather(
+        geckoterminal_token_price(contract_address),
+        geckoterminal_pool_candidates(contract_address, symbol=label),
+        dexscreener_token_pairs(contract_address),
+    )
+
     if isinstance(gt_token, Ok):
         tried = await _try_candidate(gt_token.value, contract_address=contract_address, attempts=attempts)
         if isinstance(tried, Ok):
-            set_cached(key, tried.value, ttl)
             return tried
     elif isinstance(gt_token, Err):
         attempts.append(f"geckoterminal_token:{gt_token.code}")
 
     pool_addrs: list[tuple[str, str | None]] = []
 
-    gt_pools = await geckoterminal_pool_candidates(contract_address, symbol=sym or contract_address[:8])
     if isinstance(gt_pools, Ok):
         picked = await _pick_from_list(gt_pools.value, contract_address=contract_address, attempts=attempts)
         if isinstance(picked, Ok):
-            set_cached(key, picked.value, ttl)
             return picked
         for c in gt_pools.value:
             if c.pool_address:
@@ -139,11 +143,9 @@ async def resolve_onchain_price_usd(
     elif isinstance(gt_pools, Err):
         attempts.append(f"geckoterminal_pools:{gt_pools.code}")
 
-    ds_token = await dexscreener_token_pairs(contract_address)
     if isinstance(ds_token, Ok):
         picked = await _pick_from_list(ds_token.value, contract_address=contract_address, attempts=attempts)
         if isinstance(picked, Ok):
-            set_cached(key, picked.value, ttl)
             return picked
         for c in ds_token.value:
             if c.pool_address:
@@ -151,12 +153,12 @@ async def resolve_onchain_price_usd(
     elif isinstance(ds_token, Err):
         attempts.append(f"dexscreener_token:{ds_token.code}")
 
-    if sym:
+    skip_search = settings.peg_gap_skip_dexscreener_search and isinstance(gt_pools, Err)
+    if sym and not skip_search:
         ds_search = await dexscreener_search_pairs(sym, contract_address)
         if isinstance(ds_search, Ok):
             picked = await _pick_from_list(ds_search.value, contract_address=contract_address, attempts=attempts)
             if isinstance(picked, Ok):
-                set_cached(key, picked.value, ttl)
                 return picked
             for c in ds_search.value:
                 if c.pool_address:
@@ -178,7 +180,11 @@ async def resolve_onchain_price_usd(
                     pool_address=rpc.value.pool_address,
                     price_usd=rpc.value.price_usd,
                     liquidity_usd=next(
-                        (c.liquidity_usd for c in (gt_pools.value if isinstance(gt_pools, Ok) else []) if c.pool_address.lower() == pk),
+                        (
+                            c.liquidity_usd
+                            for c in (gt_pools.value if isinstance(gt_pools, Ok) else [])
+                            if c.pool_address.lower() == pk
+                        ),
                         None,
                     ),
                     volume_24h_usd=None,
@@ -189,7 +195,6 @@ async def resolve_onchain_price_usd(
                 )
                 tried = await _try_candidate(merged, contract_address=contract_address, attempts=attempts)
                 if isinstance(tried, Ok):
-                    set_cached(key, tried.value, ttl)
                     return tried
 
     reason = (
@@ -201,3 +206,59 @@ async def resolve_onchain_price_usd(
         message=reason,
         hint="Token may have no USDC/WETH pool above configured liquidity floors",
     )
+
+
+async def resolve_onchain_price_usd(
+    contract_address: str,
+    *,
+    symbol: str | None = None,
+) -> Result[dict[str, Any]]:
+    """Resolve a Base onchain USD price using real market data only."""
+    ttl = int(settings.peg_gap_onchain_cache_ttl_seconds)
+    neg_ttl = int(settings.peg_gap_onchain_negative_cache_ttl_seconds)
+    key = _cache_key(contract_address, symbol)
+
+    cached = get_cached(key, ttl)
+    if isinstance(cached, dict):
+        return Ok(cached)
+
+    negative = get_negative_cached(key, neg_ttl)
+    if negative:
+        return Err(code=negative["code"], message=negative["message"])
+
+    if not cached and not negative:
+        await hydrate_cached_from_kv(key)
+        cached = get_cached(key, ttl)
+        if isinstance(cached, dict):
+            return Ok(cached)
+        negative = get_negative_cached(key, neg_ttl)
+        if negative:
+            return Err(code=negative["code"], message=negative["message"])
+
+    timeout = float(settings.peg_gap_onchain_resolve_timeout_seconds)
+    try:
+        outcome = await asyncio.wait_for(
+            _resolve_inner(contract_address, symbol=symbol),
+            timeout=timeout,
+        )
+    except TimeoutError:
+        err = Err(
+            code="onchain_resolve_timeout",
+            message=f"Onchain price lookup timed out after {timeout}s",
+        )
+        set_negative_cached(key, err.code, err.message, min(neg_ttl, 300))
+        await persist_cached_to_kv(key, positive=None, negative={"code": err.code, "message": err.message})
+        return err
+
+    if isinstance(outcome, Ok):
+        set_cached(key, outcome.value, ttl)
+        await persist_cached_to_kv(key, positive=outcome.value, negative=None)
+        return outcome
+
+    set_negative_cached(key, outcome.code, outcome.message, neg_ttl)
+    await persist_cached_to_kv(
+        key,
+        positive=None,
+        negative={"code": outcome.code, "message": outcome.message},
+    )
+    return outcome

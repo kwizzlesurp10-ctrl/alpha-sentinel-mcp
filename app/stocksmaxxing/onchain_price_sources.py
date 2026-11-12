@@ -64,15 +64,17 @@ def _now_iso() -> str:
 async def _http_get_json(url: str) -> Result[dict[str, Any]]:
     headers = {"Accept": "application/json", "User-Agent": GECKO_USER_AGENT}
     last_error: str | None = None
-    for attempt in range(4):
+    max_retries = max(1, int(settings.peg_gap_http_max_retries))
+    timeout = min(float(settings.peg_gap_http_timeout_seconds), float(settings.x402_http_timeout))
+    for attempt in range(max_retries):
         try:
-            async with httpx.AsyncClient(timeout=settings.x402_http_timeout, headers=headers) as client:
+            async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
                 response = await client.get(url)
                 if response.status_code == 404:
                     return Err(code="http_404", message=f"Not found: {url}")
                 if response.status_code == 429:
                     last_error = "429 Too Many Requests"
-                    await asyncio.sleep(0.6 * (attempt + 1))
+                    await asyncio.sleep(0.25 * (attempt + 1))
                     continue
                 response.raise_for_status()
                 payload = response.json()
