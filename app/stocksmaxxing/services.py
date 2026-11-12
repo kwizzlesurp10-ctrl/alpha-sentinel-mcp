@@ -242,17 +242,48 @@ async def peg_gap_public_preview(
     *,
     alert_threshold_pct: float = 2.0,
     page_size: int = 25,
+    force_refresh: bool = False,
 ) -> dict[str, Any]:
     """Unpaid radar slice for the dashboard (same data rules as paid tool)."""
+    from app.stocksmaxxing.peg_gap_snapshot import (
+        load_peg_gap_snapshot,
+        save_peg_gap_snapshot,
+    )
+
+    page_size = min(page_size, 40)
+    if not force_refresh:
+        cached = await load_peg_gap_snapshot(alert_threshold_pct=alert_threshold_pct, page_size=page_size)
+        if cached:
+            return with_disclaimer({**cached, "success": True, "demo": False})
+
     try:
         rows, meta = await build_peg_gap_rows(
             alert_threshold_pct=alert_threshold_pct,
-            page_size=min(page_size, 40),
+            page_size=page_size,
             symbols=None,
         )
     except ValueError as exc:
         return with_disclaimer({"success": False, "error": str(exc), "code": "peg_gap_error"})
-    return with_disclaimer({"success": True, "rows": rows, "meta": meta, "demo": False})
+    payload = {"success": True, "rows": rows, "meta": {**meta, "cache_status": "fresh"}}
+    await save_peg_gap_snapshot(
+        alert_threshold_pct=alert_threshold_pct,
+        page_size=page_size,
+        payload={"rows": rows, "meta": payload["meta"]},
+    )
+    return with_disclaimer({**payload, "demo": False})
+
+
+async def warm_peg_gap_snapshot(
+    *,
+    alert_threshold_pct: float = 2.0,
+    page_size: int = 25,
+) -> dict[str, Any]:
+    """Operator/cron: rebuild peg-gap snapshot in KV."""
+    return await peg_gap_public_preview(
+        alert_threshold_pct=alert_threshold_pct,
+        page_size=page_size,
+        force_refresh=True,
+    )
 
 
 async def tokenized_stock_model_portfolio_endpoint(

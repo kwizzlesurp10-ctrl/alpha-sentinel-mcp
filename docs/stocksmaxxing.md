@@ -65,7 +65,8 @@ Receipt covers: brief sections, `data_sources`, `generated_at`, `proof_of_resear
 
 - **Onchain price (fallback chain):** GeckoTerminal token `price_usd` → GeckoTerminal token pools (USDC/WETH quotes) → DexScreener token/search on Base → optional `slot0` RPC on known pool addresses (`PEG_GAP_ENABLE_RPC_POOL_READ`, uses `BASE_RPC_URL`). No fabricated prices; tokens without a pool above the liquidity floor are `no_onchain_market`.
 - **Liquidity floor:** `PEG_GAP_MIN_POOL_LIQUIDITY_USD`, optional `PEG_GAP_MIN_POOL_VOLUME_24H_USD`.
-- **Cache:** `PEG_GAP_ONCHAIN_CACHE_TTL_SECONDS` (in-memory, peg-gap API).
+- **Cache:** per-token in-memory + optional KV (`PEG_GAP_ONCHAIN_*`), negative cache for `no_onchain_market`, and full-response snapshot (`PEG_GAP_SNAPSHOT_CACHE_TTL_SECONDS`). Cron: `/stocksmaxxing/api/cron/warm-peg-gap`.
+- **Latency:** parallel row builds (`PEG_GAP_ONCHAIN_PARALLELISM`), shorter HTTP timeouts, skip DexScreener symbol search when Gecko pools are empty.
 - **Reference:** underlying spot (Yahoo default) or `nav_price` when underlying unavailable.
 - **Alerts:** `peg_gap_alert` when `|gap_pct| >= alert_threshold_pct`.
 - **UI:** [/stocksmaxxing/peg-gap](/stocksmaxxing/peg-gap) → `/stocksmaxxing/api/peg-gap` (default `page_size=25`).

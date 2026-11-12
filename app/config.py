@@ -135,7 +135,15 @@ class Settings(BaseSettings):
     peg_gap_min_pool_liquidity_usd: float = 1_000.0
     peg_gap_min_pool_volume_24h_usd: float = 0.0
     peg_gap_onchain_cache_ttl_seconds: int = 90
-    peg_gap_onchain_request_delay_seconds: float = 0.35
+    peg_gap_onchain_negative_cache_ttl_seconds: int = 3600
+    peg_gap_onchain_request_delay_seconds: float = 0.0
+    peg_gap_onchain_resolve_timeout_seconds: float = 6.0
+    peg_gap_onchain_parallelism: int = 8
+    peg_gap_http_timeout_seconds: float = 5.0
+    peg_gap_http_max_retries: int = 2
+    peg_gap_skip_dexscreener_search: bool = True
+    peg_gap_snapshot_cache_ttl_seconds: int = 180
+    peg_gap_cron_secret: str | None = None
     peg_gap_enable_rpc_pool_read: bool = False
 
     stocksmaxxing_seal_chain: str = "base-sepolia"

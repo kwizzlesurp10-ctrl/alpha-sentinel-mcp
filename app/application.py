@@ -661,6 +661,26 @@ async def stocksmaxxing_peg_gap_public_api(
     return await peg_gap_public_preview(alert_threshold_pct=alert_threshold_pct, page_size=page_size)
 
 
+@api.get("/stocksmaxxing/api/cron/warm-peg-gap")
+async def stocksmaxxing_cron_warm_peg_gap(
+    request: Request,
+    alert_threshold_pct: float = Query(default=2.0, ge=0.1, le=50.0),
+    page_size: int = Query(default=25, ge=1, le=40),
+):
+    """Refresh peg-gap KV snapshot (Vercel Cron or operator token)."""
+    authorized = _operator_authorized(request)
+    cron_secret = settings.peg_gap_cron_secret
+    if cron_secret and request.headers.get("Authorization") == f"Bearer {cron_secret}":
+        authorized = True
+    if request.headers.get("x-vercel-cron") == "1":
+        authorized = True
+    if not authorized:
+        raise HTTPException(status_code=401, detail="cron_or_operator_required")
+    from app.stocksmaxxing.services import warm_peg_gap_snapshot
+
+    return await warm_peg_gap_snapshot(alert_threshold_pct=alert_threshold_pct, page_size=page_size)
+
+
 @api.get("/stocksmaxxing/verify-receipt")
 @api.post("/stocksmaxxing/verify-receipt")
 async def stocksmaxxing_verify_receipt(request: Request):
