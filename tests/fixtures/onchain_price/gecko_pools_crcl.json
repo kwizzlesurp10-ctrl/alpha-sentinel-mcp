@@ -1,0 +1,25 @@
+{
+  "data": [
+    {
+      "id": "base_0xpoolcrcl",
+      "type": "pool",
+      "attributes": {
+        "address": "0x0000000000000000000000000000000000000a01",
+        "name": "CRCLc / USDC 0.01%",
+        "base_token_price_usd": "67.04",
+        "quote_token_price_usd": "1.0001",
+        "reserve_in_usd": "125000.50",
+        "volume_usd": {"h24": "4200.75"}
+      },
+      "relationships": {
+        "base_token": {
+          "data": {"id": "base_0xb20000000000000000000019f6e7c675b73c2e4d", "type": "token"}
+        },
+        "quote_token": {
+          "data": {"id": "base_0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", "type": "token"}
+        },
+        "dex": {"data": {"id": "uniswap-v3-base", "type": "dex"}}
+      }
+    }
+  ]
+}

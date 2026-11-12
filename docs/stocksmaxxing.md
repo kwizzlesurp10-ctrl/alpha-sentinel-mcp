@@ -8,7 +8,7 @@
 Alpha Sentinel MCP sells **research-only** tokenized-stock intelligence for **USDC on Base** via **x402** (`eip155:8453`). Season highlights:
 
 1. **Proof-of-Research receipts** — every paid `tokenized_stock_research_brief` returns a canonical JSON hash + metadata; **Seal on Base** anchors the hash via a minimal `ResearchReceiptRegistry` contract; **public verify** recomputes the hash and reads `sealedAt` onchain.
-2. **Peg-Gap Radar** — onchain DEX price (GeckoTerminal on Base) vs underlying reference, % gap, configurable alerts; paid MCP tool + live dashboard at `/stocksmaxxing/peg-gap`.
+2. **Peg-Gap Radar** — onchain DEX price on Base (GeckoTerminal token + pools, DexScreener, optional RPC pool read) vs underlying reference, % gap, liquidity floor, configurable alerts; paid MCP tool + live dashboard at `/stocksmaxxing/peg-gap`.
 
 **Not investment advice.** No trading, execution, routing, custody, or swaps.
 
@@ -18,7 +18,7 @@ Alpha Sentinel MCP sells **research-only** tokenized-stock intelligence for **US
 |-----------|----------|
 | Tokenized-stock adapters | `app/stocksmaxxing/` |
 | Proof-of-Research hashing + seal/verify | `research_receipt.py`, `seal_registry.py`, `verify.py` |
-| Peg-Gap Radar + dashboard | `peg_gap.py`, `onchain_price.py`, `static/stocksmaxxing/peg-gap.html` |
+| Peg-Gap Radar + dashboard | `peg_gap.py`, `onchain_price*.py`, `static/stocksmaxxing/peg-gap.html` |
 | Minimal seal contract (source) | `app/stocksmaxxing/contracts/ResearchReceiptRegistry.sol` |
 | Eight paid x402 tools | `app/stocksmaxxing/registry.py` |
 | Track-record hook (future) | `track_record.py` |
@@ -63,10 +63,12 @@ Receipt covers: brief sections, `data_sources`, `generated_at`, `proof_of_resear
 
 ## Peg-Gap Radar
 
-- **Onchain price:** [GeckoTerminal](https://api.geckoterminal.com) `networks/base/tokens/{contract}` (`ONCHAIN_PRICE_PROVIDER=geckoterminal`, no key).
+- **Onchain price (fallback chain):** GeckoTerminal token `price_usd` → GeckoTerminal token pools (USDC/WETH quotes) → DexScreener token/search on Base → optional `slot0` RPC on known pool addresses (`PEG_GAP_ENABLE_RPC_POOL_READ`, uses `BASE_RPC_URL`). No fabricated prices; tokens without a pool above the liquidity floor are `no_onchain_market`.
+- **Liquidity floor:** `PEG_GAP_MIN_POOL_LIQUIDITY_USD`, optional `PEG_GAP_MIN_POOL_VOLUME_24H_USD`.
+- **Cache:** `PEG_GAP_ONCHAIN_CACHE_TTL_SECONDS` (in-memory, peg-gap API).
 - **Reference:** underlying spot (Yahoo default) or `nav_price` when underlying unavailable.
 - **Alerts:** `peg_gap_alert` when `|gap_pct| >= alert_threshold_pct`.
-- **UI:** [/stocksmaxxing/peg-gap](/stocksmaxxing/peg-gap) → `/stocksmaxxing/api/peg-gap`.
+- **UI:** [/stocksmaxxing/peg-gap](/stocksmaxxing/peg-gap) → `/stocksmaxxing/api/peg-gap` (default `page_size=25`).
 
 ## Data sources & env vars
 
@@ -74,7 +76,7 @@ Receipt covers: brief sections, `data_sources`, `generated_at`, `proof_of_resear
 |--------|-----|
 | Coinbase Tokenized Stocks API | `TOKENIZED_STOCKS_API_BASE_URL` (optional) |
 | Underlying spot | `UNDERLYING_EQUITY_PRICE_PROVIDER`, `FINNHUB_API_KEY` (optional) |
-| Onchain DEX price | `ONCHAIN_PRICE_PROVIDER=geckoterminal` |
+| Onchain DEX price | `ONCHAIN_PRICE_PROVIDER`, `PEG_GAP_*` |
 | x402 seller | `X402_PAY_TO_ADDRESS` |
 | Seal registry (deploy on Sepolia) | `RESEARCH_RECEIPT_REGISTRY_ADDRESS` |
 | Seal chain | `STOCKSMAXXING_SEAL_CHAIN=base-sepolia` |

@@ -59,16 +59,46 @@ def mock_stocksmaxxing_upstream(monkeypatch):
         if "finance/chart" in url_s:
             return MockResponse(FIXTURE_DATA["yahoo_chart"])
         if "geckoterminal.com" in url_s:
+            if "/pools" in url_s:
+                return MockResponse(
+                    {
+                        "data": [
+                            {
+                                "attributes": {
+                                    "address": "0x0000000000000000000000000000000000000a01",
+                                    "name": "CRCLc / USDC",
+                                    "base_token_price_usd": "67.04",
+                                    "reserve_in_usd": "50000",
+                                    "volume_usd": {"h24": "1000.0"},
+                                },
+                                "relationships": {
+                                    "base_token": {
+                                        "data": {
+                                            "id": "base_0xb20000000000000000000019f6e7c675b73c2e4d",
+                                        }
+                                    },
+                                    "quote_token": {
+                                        "data": {
+                                            "id": "base_0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+                                        }
+                                    },
+                                },
+                            }
+                        ]
+                    }
+                )
             return MockResponse(
                 {
                     "data": {
                         "attributes": {
-                            "price_usd": "67.04",
+                            "price_usd": None,
                             "volume_usd": {"h24": "1000.0"},
                         }
                     }
                 }
             )
+        if "dexscreener.com" in url_s:
+            return MockResponse({"pairs": []})
         if "coingecko" in url_s or "ping" in url_s:
             return MockResponse({})
         return MockResponse({})

@@ -28,15 +28,19 @@
       <tr>
         <th>Symbol</th>
         <th>Onchain $</th>
+        <th>Source</th>
+        <th>Pool / liq</th>
         <th>Reference $</th>
         <th>Gap %</th>
+        <th>Status</th>
         <th>Alert</th>
       </tr>
     </thead>
     <tbody id="rows"></tbody>
   </table>
   <p class="disclaimer">
-    Data: GeckoTerminal (onchain) + configured underlying provider. Paid full radar:
+    Onchain: GeckoTerminal token/pools, DexScreener (Base), optional RPC slot0 when enabled — liquidity floor via env.
+    Reference: configured underlying provider. Paid full radar:
     <code>tokenized_stock_peg_gap_radar</code> via x402. Verify research receipts at
     <a href="/stocksmaxxing/verify-receipt">/stocksmaxxing/verify-receipt</a>.
   </p>
@@ -54,15 +58,22 @@
         tbody.innerHTML = rows.map(row => {
           const gap = row.gap_pct == null ? '—' : row.gap_pct.toFixed(2) + '%';
           const alert = row.peg_gap_alert ? '<span class="alert">YES</span>' : 'no';
+          const liq = row.onchain_liquidity_usd != null ? '$' + Math.round(row.onchain_liquidity_usd).toLocaleString() : '—';
+          const pool = row.onchain_pool_address ? row.onchain_pool_address.slice(0, 10) + '…' : '—';
+          const status = row.onchain_market_status === 'priced' ? 'priced' : (row.onchain_price_error || 'no market');
           return `<tr>
             <td>${row.symbol || ''}</td>
             <td>${row.onchain_price_usd != null ? row.onchain_price_usd.toFixed(4) : 'n/a'}</td>
+            <td>${row.onchain_price_source || '—'}</td>
+            <td title="${row.onchain_pool_address || ''}">${pool} ${liq}</td>
             <td>${row.reference_price_usd != null ? row.reference_price_usd.toFixed(4) : 'n/a'}</td>
             <td>${gap}</td>
+            <td>${status}</td>
             <td>${alert}</td>
           </tr>`;
         }).join('');
-        status.textContent = `${rows.length} rows · alerts: ${body.meta?.alerts_triggered ?? 0}`;
+        const priced = body.meta?.onchain_priced_count ?? rows.filter(r => r.onchain_market_status === 'priced').length;
+        status.textContent = `${rows.length} rows · onchain priced: ${priced} · alerts: ${body.meta?.alerts_triggered ?? 0}`;
       } catch (e) {
         status.textContent = 'Error: ' + e.message;
         tbody.innerHTML = '';

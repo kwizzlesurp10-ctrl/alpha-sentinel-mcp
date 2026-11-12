@@ -132,6 +132,11 @@ class Settings(BaseSettings):
     finnhub_api_key: str | None = None
 
     onchain_price_provider: str = "geckoterminal"
+    peg_gap_min_pool_liquidity_usd: float = 1_000.0
+    peg_gap_min_pool_volume_24h_usd: float = 0.0
+    peg_gap_onchain_cache_ttl_seconds: int = 90
+    peg_gap_onchain_request_delay_seconds: float = 0.35
+    peg_gap_enable_rpc_pool_read: bool = False
 
     stocksmaxxing_seal_chain: str = "base-sepolia"
     stocksmaxxing_seal_allow_mainnet: bool = False
