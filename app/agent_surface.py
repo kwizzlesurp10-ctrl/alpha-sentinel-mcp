@@ -68,7 +68,8 @@ def llms_txt() -> str:
     lines = [
         "# Alpha Sentinel Volatility MCP Server",
         "",
-        "> Pay-per-call HTTP APIs and MCP tools over x402: USDC on Base, no API key, no signup.",
+        "> Research and market-intelligence data for AI agents. Pay-per-call HTTP APIs and MCP tools over x402: USDC on Base, no API key, no signup.",
+        "> **No trading. No order execution.** Intelligence and alerting only.",
         "",
         "## Paid Resources",
         "",
@@ -209,16 +210,16 @@ def mcp_well_known() -> dict[str, Any]:
         "title": "Alpha Sentinel — Predictive Alpha & On-chain Market Intelligence",
         "version": "0.2.0",
         "description": (
-            "Autonomous Trading Data & On-chain Market Intelligence MCP Server. "
+            "Agent-Ready Market Research Data & On-chain Market Intelligence MCP Server. "
             "Provides statistical Z-score volatility alerts, multi-source sentiment "
             "aggregation, multi-factor crypto risk scoring, and executive market "
-            "intelligence reports via x402 Monetized API (USDC on Base)."
+            "intelligence reports via x402 Monetized API (USDC on Base). Research only — no trading."
         ),
         "keywords": [
             "Predictive Alpha",
             "On-chain Market Intelligence",
             "x402 Monetized API",
-            "Autonomous Trading Data",
+            "Agent-Ready Market Research Data",
             "Crypto Volatility Alerts",
             "Sentiment Aggregation",
             "MCP Server",
@@ -231,7 +232,7 @@ def mcp_well_known() -> dict[str, Any]:
         "playbooks": [
             {
                 "slug": "automate-volatility-alerts",
-                "title": "How to Automate Crypto Volatility Alerts for Trading Bots",
+                "title": "How to Automate Crypto Volatility Alerts for Research Agents",
                 "url": f"{base}/docs/automate-volatility-alerts",
             },
             {
@@ -241,7 +242,7 @@ def mcp_well_known() -> dict[str, Any]:
             },
             {
                 "slug": "reduce-slippage-sentiment",
-                "title": "Reducing Slippage with Real-Time Sentiment Aggregation",
+                "title": "Grounding Agent Research with Real-Time Sentiment Aggregation",
                 "url": f"{base}/docs/reduce-slippage-sentiment",
             },
         ],
@@ -269,7 +270,7 @@ def mcp_well_known() -> dict[str, Any]:
                 "args": ["run_stdio.py"],
                 "description": (
                     "Alpha Sentinel — Predictive Alpha & On-chain Market Intelligence "
-                    "(x402 Monetized API for Autonomous Trading Data)"
+                    "(x402 Monetized API for Agent-Ready Market Research Data; research only)"
                 ),
                 "tools": specs,
             }

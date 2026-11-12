@@ -1,11 +1,11 @@
-# Alpha Sentinel Developer Playbooks — Predictive Alpha, On-Chain Market Intelligence & x402 Autonomous Trading
+# Alpha Sentinel Developer Playbooks — Predictive Alpha, On-Chain Market Intelligence & x402 Agent Research
 
 This document contains the complete Markdown technical guides corresponding to the live HTML playbooks hosted under `/docs`:
 
 - **Documentation Hub:** [`/docs`](https://alpha-sentinel-mcp.vercel.app/docs)
 - **Playbook 01:** [`/docs/automate-volatility-alerts`](https://alpha-sentinel-mcp.vercel.app/docs/automate-volatility-alerts) — *How to automate volatility alerts using Alpha Sentinel*
-- **Playbook 02:** [`/docs/integrate-predictive-alpha`](https://alpha-sentinel-mcp.vercel.app/docs/integrate-predictive-alpha) — *Integrating predictive alpha into an autonomous trading agent*
-- **Playbook 03:** [`/docs/reduce-slippage-sentiment`](https://alpha-sentinel-mcp.vercel.app/docs/reduce-slippage-sentiment) — *Reducing slippage with real-time sentiment analysis*
+- **Playbook 02:** [`/docs/integrate-predictive-alpha`](https://alpha-sentinel-mcp.vercel.app/docs/integrate-predictive-alpha) — *Integrating predictive alpha into an autonomous research agent*
+- **Playbook 03:** [`/docs/reduce-slippage-sentiment`](https://alpha-sentinel-mcp.vercel.app/docs/reduce-slippage-sentiment) — *Grounding agent research with real-time sentiment analysis*
 - **Interactive OpenAPI Explorer:** [`/openapi`](https://alpha-sentinel-mcp.vercel.app/openapi)
 
 ---
@@ -111,7 +111,7 @@ curl -sX POST https://alpha-sentinel-mcp.vercel.app/mcp \
 
 ---
 
-# Integrating predictive alpha into an autonomous trading agent
+# Integrating predictive alpha into an autonomous research agent
 
 **Playbook 02 • Canonical URL:** `/docs/integrate-predictive-alpha`  
 **Primary Tools:** `fetch_price` → `analyze_volatility` → `calculate_risk_score` → `generate_market_report`
@@ -152,7 +152,7 @@ npx agentcash@latest fetch https://alpha-sentinel-mcp.vercel.app/tools/calculate
 
 ---
 
-# Reducing slippage with real-time sentiment analysis
+# Grounding agent research with real-time sentiment analysis
 
 **Playbook 03 • Canonical URL:** `/docs/reduce-slippage-sentiment`  
 **Primary Tools:** `aggregate_sentiment` (`$0.01 USDC`) + `analyze_volatility` (`$0.02 USDC`) + `calculate_risk_score` (`$0.03 USDC`)

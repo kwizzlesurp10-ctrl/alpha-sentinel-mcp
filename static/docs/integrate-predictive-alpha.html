@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Integrating predictive alpha into an autonomous trading agent — Playbook 02 | Alpha Sentinel Docs</title>
-    <meta name="description" content="End-to-end engineering playbook for integrating predictive alpha into an autonomous trading agent using Alpha Sentinel's MCP, A2A, and x402 endpoints on Base (eip155:8453).">
-    <meta name="keywords" content="Integrating predictive alpha into an autonomous trading agent, Alpha Sentinel MCP, LangGraph trading agent, Coinbase AgentKit x402, A2A protocol trading, calculate_risk_score, generate_market_report">
+    <title>Integrating predictive alpha into an autonomous research agent — Playbook 02 | Alpha Sentinel Docs</title>
+    <meta name="description" content="End-to-end engineering playbook for integrating predictive alpha into an autonomous research agent using Alpha Sentinel's MCP, A2A, and x402 endpoints on Base (eip155:8453).">
+    <meta name="keywords" content="Integrating predictive alpha into an autonomous research agent, Alpha Sentinel MCP, LangGraph research agent, Coinbase AgentKit x402, A2A protocol trading, calculate_risk_score, generate_market_report">
     <link rel="canonical" href="https://alpha-sentinel-mcp.vercel.app/docs/integrate-predictive-alpha">
     <script type="application/ld+json">
     {
@@ -13,7 +13,7 @@
       "@graph": [
         {
           "@type": "TechArticle",
-          "headline": "Integrating predictive alpha into an autonomous trading agent",
+          "headline": "Integrating predictive alpha into an autonomous research agent",
           "description": "End-to-end guide for agent builders (LangGraph, Claude MCP, Coinbase AgentKit / AgentCash, A2A protocol) to discover Alpha Sentinel via /.well-known/mcp.json and /.well-known/x402, combine fetch_price, analyze_volatility, calculate_risk_score, and generate_market_report into an autonomous decision loop, manage position sizing based on multi-factor risk scores, and settle x402 micropayments in USDC on Base.",
           "author": {
             "@type": "Organization",
@@ -29,7 +29,7 @@
         },
         {
           "@type": "HowTo",
-          "name": "Integrating predictive alpha into an autonomous trading agent",
+          "name": "Integrating predictive alpha into an autonomous research agent",
           "description": "Build a multi-stage autonomous trading decision loop with Alpha Sentinel's MCP, A2A, and x402 APIs.",
           "step": [
             {
@@ -220,10 +220,10 @@
         <span class="badge badge-success">LangGraph • Claude MCP • AgentKit • A2A</span>
         <span class="badge badge-primary">x402 USDC on Base</span>
 
-        <h1>Integrating predictive alpha into an autonomous trading agent</h1>
+        <h1>Integrating predictive alpha into an autonomous research agent</h1>
 
         <p>
-            Autonomous trading agents fail in production when they rely solely on LLM reasoning over unverified social chatter or raw candle data without a calibrated risk and capital-allocation model. This playbook covers <strong>integrating predictive alpha into an autonomous trading agent</strong> using Alpha Sentinel's zero-signup machine discovery manifests (<code>/.well-known/mcp.json</code>, <code>/.well-known/x402</code>, and <code>/.well-known/agent-card.json</code>), orchestrating a cost-efficient 4-stage intelligence funnel (<code>fetch_price</code> → <code>analyze_volatility</code> → <code>calculate_risk_score</code> → <code>generate_market_report</code>), sizing positions mathematically from multi-factor risk weights, and settling pay-per-call USDC micropayments on Base (<code>eip155:8453</code>).
+            Autonomous research agents fail in production when they rely solely on LLM reasoning over unverified social chatter or raw candle data without a calibrated risk and capital-allocation model. This playbook covers <strong>integrating predictive alpha into an autonomous research agent</strong> using Alpha Sentinel's zero-signup machine discovery manifests (<code>/.well-known/mcp.json</code>, <code>/.well-known/x402</code>, and <code>/.well-known/agent-card.json</code>), orchestrating a cost-efficient 4-stage intelligence funnel (<code>fetch_price</code> → <code>analyze_volatility</code> → <code>calculate_risk_score</code> → <code>generate_market_report</code>), sizing positions mathematically from multi-factor risk weights, and settling pay-per-call USDC micropayments on Base (<code>eip155:8453</code>).
         </p>
 
         <div class="callout">
@@ -241,7 +241,7 @@
             <li><strong>LLM Context Summary (<a href="/llms.txt"><code>GET /llms.txt</code></a>):</strong> Compact Markdown overview designed for direct injection into an agent's system prompt.</li>
         </ol>
 
-        <h2>2. End-to-End Autonomous Trading State Machine</h2>
+        <h2>2. End-to-End Autonomous Research State Machine</h2>
         <pre><code>┌────────────────────────────────────────────────────────────────────────────────────┐
 │  STAGE 0: DYNAMIC DISCOVERY                                                        │
 │  GET /.well-known/mcp.json  │  GET /.well-known/x402  │  GET /.well-known/agent-card.json
@@ -515,7 +515,7 @@ curl -sX POST https://alpha-sentinel-mcp.vercel.app/a2a \
             </div>
             <div class="playbook-link-card">
                 <div style="font-size: 0.8rem; color: var(--muted);">NEXT PLAYBOOK (03)</div>
-                <a href="/docs/reduce-slippage-sentiment"><strong>Reducing slippage with real-time sentiment analysis →</strong></a>
+                <a href="/docs/reduce-slippage-sentiment"><strong>Grounding agent research with real-time sentiment analysis →</strong></a>
                 <p style="font-size: 0.88rem; margin: 6px 0 0;">Route orders using TWAP/VWAP when sentiment &amp; volatility diverge.</p>
             </div>
         </div>

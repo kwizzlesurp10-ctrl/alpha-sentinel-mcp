@@ -1,0 +1,20 @@
+{
+  "pairs": [
+    {
+      "chainId": "base",
+      "dexId": "aerodrome",
+      "pairAddress": "0x0000000000000000000000000000000000000b02",
+      "priceUsd": "68.10",
+      "liquidity": {"usd": 88000},
+      "volume": {"h24": 3100},
+      "baseToken": {
+        "address": "0xb20000000000000000000019f6e7c675b73c2e4d",
+        "symbol": "CRCLc"
+      },
+      "quoteToken": {
+        "address": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "symbol": "USDC"
+      }
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "data": {
+    "id": "base_0xb20000000000000000000019f6e7c675b73c2e4d",
+    "type": "token",
+    "attributes": {
+      "address": "0xb20000000000000000000019f6e7c675b73c2e4d",
+      "price_usd": null,
+      "volume_usd": {"h24": "0"}
+    }
+  }
+}
