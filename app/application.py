@@ -899,3 +899,8 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(app, host=settings.host, port=settings.port)
+
+
+@api.get("/.well-known/402index-verify.txt", response_class=PlainTextResponse, include_in_schema=False)
+async def index402_verify():
+    return PlainTextResponse(content="ff4a4ed509882383c877223e0316519a9eb47d82eb3c6d8f8e87f24b1cbf9050\n")
