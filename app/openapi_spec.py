@@ -81,13 +81,22 @@ def decorate_openapi(schema: dict[str, Any]) -> dict[str, Any]:
     )
     info["x-payment-protocol"] = "x402"
     info["x-agentcash"] = True
+    info.setdefault("contact", {
+        "name": "Keith Walter",
+        "email": "kwizzlesurp10@gmail.com",
+        "url": "https://kwizzlesurp.com",
+    })
+    schema["servers"] = [
+        {"url": "https://sentinel.kwizzlesurp.com", "description": "Custom Domain Gateway (kwizzlesurp.com)"},
+        {"url": "https://alpha-sentinel-mcp.vercel.app", "description": "Primary Vercel Gateway"},
+    ]
 
     paths = schema.get("paths") or {}
     for path, methods in paths.items():
         if not isinstance(methods, dict):
             continue
         tool = http_path_to_tool(path)
-        paid = tool in PAID_TOOLS if tool else False
+        paid = (tool in PAID_TOOLS and path.startswith("/tools/") and not path.endswith("/sample")) if tool else False
         for method, op in list(methods.items()):
             if method.startswith("x-") or not isinstance(op, dict):
                 continue
@@ -113,6 +122,6 @@ def decorate_openapi(schema: dict[str, Any]) -> dict[str, Any]:
                         }
                     },
                 }
-            elif tool in FREE_TOOLS or path in PUBLIC_FREE_PATHS or path.replace("/api", "") in PUBLIC_FREE_PATHS:
+            else:
                 op["security"] = []
     return schema
