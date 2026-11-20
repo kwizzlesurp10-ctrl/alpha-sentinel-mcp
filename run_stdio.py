@@ -11,7 +11,10 @@ The server will read from stdin and write to stdout.
 """
 
 import logging
+import os
 import sys
+
+os.environ.setdefault("FASTMCP_SHOW_CLI_BANNER", "false")
 
 from app.mcp_server import mcp_app
 
@@ -29,16 +32,17 @@ logger = logging.getLogger(__name__)
 
 def main():
     """Run MCP server via stdio transport."""
-    logger.info("🚀 Starting Alpha Sentinel MCP Server (stdio mode)...")
-    logger.info(f"📊 Tools available: {len(mcp_app._tool_manager._tools)}")
-    
+    logger.info("Starting Alpha Sentinel MCP Server (stdio mode)...")
+
     try:
-        # Run the FastMCP server with stdio transport
-        mcp_app.run()
+        try:
+            mcp_app.run(show_banner=False)
+        except TypeError:
+            mcp_app.run()
     except KeyboardInterrupt:
-        logger.info("\n👋 Shutting down gracefully...")
+        logger.info("Shutting down gracefully...")
     except Exception as e:
-        logger.error(f"❌ Fatal error: {e}")
+        logger.error(f"Fatal error: {e}")
         sys.exit(1)
 
 
