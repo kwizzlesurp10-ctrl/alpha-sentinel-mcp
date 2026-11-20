@@ -729,6 +729,15 @@ async def well_known_x402_endpoint():
     return well_known_x402()
 
 
+@api.get("/.well-known/x402-trust.txt", response_class=PlainTextResponse)
+async def well_known_x402_trust_txt():
+    """Domain ownership proof for x402-trust.com provider verification."""
+    return (
+        "x402-trust-verification=v1:"
+        "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAES7UjJ9XFU1xMwtXSfsSyOnBoTxMBdKTvypTHDwxiWeIzJ5k3JLtJRDtBo435MFhItcelm_1GFzzsF3ltaL6tjA\n"
+    )
+
+
 @api.get("/llms.txt", response_class=PlainTextResponse)
 async def llms_txt_endpoint():
     return llms_txt()
