@@ -1,8 +1,12 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.kwizzlesurp10-ctrl/alpha-sentinel-mcp",
-  "description": "Alpha Sentinel market intelligence MCP: fetch_price, volatility, sentiment, risk, reports. x402/AgentCash USDC on Base. Streamable HTTP.",
-  "version": "0.2.0",
+  "description": "Real-time crypto & tokenized equity intelligence MCP over x402 USDC on Base mainnet.",
+  "version": "0.2.1",
+  "repository": {
+    "url": "https://github.com/kwizzlesurp10-ctrl/alpha-sentinel-mcp",
+    "source": "github"
+  },
   "remotes": [
     {
       "type": "streamable-http",
