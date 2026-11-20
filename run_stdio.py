@@ -1,49 +1,135 @@
 #!/usr/bin/env python3
-"""Alpha Sentinel MCP Server - Stdio Transport Runner.
+"""Alpha Sentinel MCP Server - Stdio JSON-RPC 2.0 Transport Runner.
 
-This script runs the FastMCP server using stdio transport,
-allowing IDEs like Cursor, VS Code, and other MCP clients to connect.
-
-Usage:
-    python run_stdio.py
-    
-The server will read from stdin and write to stdout.
+Speaks pure newline-delimited JSON-RPC 2.0 over stdin/stdout without requiring
+external CLI banners or optional fastmcp wrappers.
 """
 
+from __future__ import annotations
+
+import asyncio
+import json
 import logging
-import os
 import sys
+from typing import Any
 
-os.environ.setdefault("FASTMCP_SHOW_CLI_BANNER", "false")
+from app.tools_registry import TOOL_SPECS
 
-from app.mcp_server import mcp_app
-
-# Setup logging (MUST use stderr so stdout stays pure JSON-RPC for MCP stdio)
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stderr)
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stderr)],
 )
-
 logger = logging.getLogger(__name__)
 
+PROTOCOL_VERSION = "2025-03-26"
+SERVER_NAME = "alpha-sentinel"
+SERVER_VERSION = "0.2.1"
 
-def main():
-    """Run MCP server via stdio transport."""
-    logger.info("Starting Alpha Sentinel MCP Server (stdio mode)...")
 
-    try:
+def _write(payload: dict[str, Any]) -> None:
+    sys.stdout.write(json.dumps(payload) + "\n")
+    sys.stdout.flush()
+
+
+def _tools_list() -> list[dict[str, Any]]:
+    return [
+        {
+            "name": spec["name"],
+            "description": spec["description"].strip(),
+            "inputSchema": spec["inputSchema"],
+        }
+        for spec in TOOL_SPECS
+    ]
+
+
+async def _handle_request(req: dict[str, Any]) -> None:
+    method = req.get("method")
+    req_id = req.get("id")
+    if method == "notifications/initialized" or req_id is None:
+        return
+
+    if method == "initialize":
+        client_ver = (req.get("params") or {}).get("protocolVersion") or PROTOCOL_VERSION
+        _write(
+            {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": {
+                    "protocolVersion": client_ver,
+                    "capabilities": {"tools": {"listChanged": False}},
+                    "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},
+                    "instructions": (
+                        "Alpha Sentinel market intelligence over x402 on Base. "
+                        "Paid tools settle in USDC on Base mainnet (eip155:8453)."
+                    ),
+                },
+            }
+        )
+        return
+
+    if method == "tools/list":
+        _write({"jsonrpc": "2.0", "id": req_id, "result": {"tools": _tools_list()}})
+        return
+
+    if method == "tools/call":
+        params = req.get("params") or {}
+        name = params.get("name", "")
+        arguments = params.get("arguments") or {}
         try:
-            mcp_app.run(show_banner=False)
-        except TypeError:
-            mcp_app.run()
+            from app.mcp_x402_payment import execute_paid_mcp_tool, extract_mcp_payment_meta
+
+            payment_meta = extract_mcp_payment_meta(params)
+            res = await execute_paid_mcp_tool(name, arguments, payment_meta)
+            _write(
+                {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "result": {
+                        "content": [{"type": "text", "text": json.dumps(res)}],
+                    },
+                }
+            )
+        except Exception as exc:
+            _write(
+                {
+                    "jsonrpc": "2.0",
+                    "id": req_id,
+                    "result": {
+                        "isError": True,
+                        "content": [{"type": "text", "text": str(exc)}],
+                    },
+                }
+            )
+        return
+
+    _write(
+        {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "error": {"code": -32601, "message": f"Method not found: {method}"},
+        }
+    )
+
+
+async def _serve() -> None:
+    for raw in sys.stdin:
+        line = raw.strip()
+        if not line:
+            continue
+        try:
+            req = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(req, dict):
+            await _handle_request(req)
+
+
+def main() -> None:
+    try:
+        asyncio.run(_serve())
     except KeyboardInterrupt:
-        logger.info("Shutting down gracefully...")
-    except Exception as e:
-        logger.error(f"Fatal error: {e}")
-        sys.exit(1)
+        pass
 
 
 if __name__ == "__main__":
