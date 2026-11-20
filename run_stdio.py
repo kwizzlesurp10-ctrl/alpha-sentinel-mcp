@@ -15,12 +15,12 @@ import sys
 
 from app.mcp_server import mcp_app
 
-# Setup logging
+# Setup logging (MUST use stderr so stdout stays pure JSON-RPC for MCP stdio)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(sys.stdout)
+        logging.StreamHandler(sys.stderr)
     ]
 )
 
