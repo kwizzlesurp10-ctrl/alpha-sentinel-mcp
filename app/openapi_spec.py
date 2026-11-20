@@ -15,7 +15,6 @@ from app.payments import (
     settlement_network,
 )
 from app.tools_registry import (
-    FREE_TOOLS,
     PAID_TOOLS,
     http_path_to_tool,
 )
