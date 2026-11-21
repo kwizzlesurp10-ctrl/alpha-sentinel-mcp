@@ -10,6 +10,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from app.config import parse_price, settings
+from app.payto_guard import CANONICAL_PAY_TO
 from app.tools_registry import (
     PAID_TOOLS,
     TOOL_HTTP_ALIASES,
@@ -22,17 +23,13 @@ from app.tools_registry import (
 # Base mainnet USDC (native token for x402 exact scheme on eip155:8453).
 USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
 
-# Used only when X402_PAY_TO_ADDRESS is unset so AgentCash can still parse a
-# payTo field. Operator should replace this with a real seller address.
-FALLBACK_PAY_TO = "0x0000000000000000000000000000000000000A02"
-
-
 def public_base_url() -> str:
     return settings.public_base_url.rstrip("/")
 
 
 def seller_pay_to() -> str:
-    return (settings.x402_pay_to_address or "").strip() or FALLBACK_PAY_TO
+    """Configured seller receive address; defaults to Keith's Base USDC wallet."""
+    return (settings.x402_pay_to_address or "").strip() or CANONICAL_PAY_TO
 
 
 def settlement_network() -> str:

@@ -7,6 +7,8 @@ from typing import Any
 from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.payto_guard import CANONICAL_PAY_TO
+
 
 def parse_price(val: str | float) -> float:
     """Helper to parse dollar string or float into a float value."""
@@ -118,7 +120,10 @@ class Settings(BaseSettings):
     evm_private_key: str | None = None
     key_provider: str = "env"
 
-    x402_pay_to_address: str | None = None
+    x402_pay_to_address: str | None = Field(
+        default=CANONICAL_PAY_TO,
+        validation_alias=AliasChoices("X402_PAY_TO_ADDRESS", "X402_PAY_TO"),
+    )
 
     base_rpc_url: str = "https://mainnet.base.org"
     eth_price_url: str = "https://api.coinbase.com/v2/prices/ETH-USD/spot"
