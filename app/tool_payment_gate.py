@@ -28,6 +28,11 @@ from app.payment_idempotency import (
     load_cached_paid_response,
     release_payment_attempt,
 )
+from app.payment_option_usage import (
+    record_payment_option_usage_from_verify_ctx,
+    usage_rank_fingerprint,
+)
+from app.payment_options import advertised_networks_csv, advertised_networks_for_seller
 from app.payments import TOOL_PRICES
 from app.tools_registry import PAID_TOOLS, get_tool_spec
 
@@ -92,7 +97,7 @@ async def build_tool_challenge(tool_name: str, resource_url: str) -> dict[str, A
     spec = get_tool_spec(tool_name)
     desc = (spec or {}).get("description", tool_name).strip().split("\n", 1)[0].strip()
     price = TOOL_PRICES.get(tool_name, settings.x402_default_price)
-    network = x402_services.resolve_revenue_network()
+    network = advertised_networks_csv()
 
     fp = challenge_cache.fingerprint(
         tool=tool_name,
@@ -101,6 +106,7 @@ async def build_tool_challenge(tool_name: str, resource_url: str) -> dict[str, A
         price=price,
         network=network,
         pay_to=pay_to,
+        usage_rank=usage_rank_fingerprint(),
     )
     cached = _built_by_fp.get(fp)
     if cached:
@@ -237,7 +243,7 @@ async def handle_paid_tool_request(
         legacy = {
             "x402Version": body.get("x402Version", 2),
             "error": body.get("error") or "Payment required",
-            "network": x402_services.resolve_revenue_network(),
+            "network": advertised_networks_for_seller()[0],
             "payTo": settings.x402_pay_to_address,
             "amount": built.get("requirements", [{}])[0].get("amount")
             if built.get("requirements")
@@ -427,6 +433,7 @@ async def finalize_pending_payment(request: Request, response: JSONResponse) -> 
         )
 
     receipt = settlement_receipt_header(settlement)
+    await record_payment_option_usage_from_verify_ctx(pending.get("verify_ctx") or {})
     request.state.x402_settlement = settlement
     request.state.x402_payment_settled = True
     request.state.x402_receipt_header = receipt

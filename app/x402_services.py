@@ -219,7 +219,20 @@ def _decode_payment_inputs(
                 matched = req
                 break
         
-        requirements = matched if matched else accepts[0]
+        if accepted_net and accepted_asset:
+            if not matched:
+                raise ValueError(
+                    f"payment_option_not_accepted: network={accepted_net} asset={accepted_asset}"
+                )
+            requirements = matched
+        else:
+            requirements = matched if matched else accepts[0]
+    except ValueError as exc:
+        if "payment_option_not_accepted" in str(exc):
+            raise
+        raw = json.loads(base64.b64decode(payment_required).decode("utf-8"))
+        bare = (raw.get("accepts") or [raw])[0]
+        requirements = PaymentRequirements.model_validate(bare)
     except Exception:
         raw = json.loads(base64.b64decode(payment_required).decode("utf-8"))
         bare = (raw.get("accepts") or [raw])[0]
@@ -759,19 +772,19 @@ def _local_exact_requirement(params, network: str, pay_to: str, description: str
         atomic = float(price_str) * 1_000_000
     except ValueError:
         atomic = 10_000.0
-    if "solana" in network.lower():
-        asset = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
-        extra = {"name": "USD Coin", "version": "2"}
-    elif "42161" in network:
-        asset = "0xaf88d065e77c8cC2239327C5EDb3A432268e5831"
-        extra = {"name": "USD Coin", "version": "2"}
-    else:
-        asset = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
-        extra = {"name": "USD Coin", "version": "2"}
+    from app.payment_options import (
+        eip712_extra_for_network,
+        pay_to_for_network,
+        usdc_asset_for_network,
+    )
+
+    recipient = pay_to_for_network(network)
+    asset = usdc_asset_for_network(network)
+    extra = eip712_extra_for_network(network)
     return PaymentRequirements(
         scheme="exact",
         network=network,
-        pay_to=pay_to,
+        pay_to=recipient,
         amount=str(int(round(atomic))),
         asset=asset,
         max_timeout_seconds=300,
@@ -798,17 +811,24 @@ def build_seller_requirements(params: BuildSellerRequirementsInput) -> dict[str,
     from x402.http import encode_payment_required_header
     from x402.schemas import PaymentRequired
 
+    from app.payment_options import (
+        advertised_networks_for_seller,
+        pay_to_for_network,
+        rank_payment_requirements,
+    )
+
     networks = parse_caip2_networks(params.network)
     if not networks:
-        networks = [_DEFAULT_CAIP2_NETWORK]
+        networks = advertised_networks_for_seller()
 
     requirements = []
-    
+
     for net in networks:
+        net_pay_to = pay_to_for_network(net)
         config = ResourceConfig(
             scheme=params.scheme,
             network=net,
-            pay_to=pay_to,
+            pay_to=net_pay_to,
             price=params.price,
         )
         facilitator = _facilitator_client(net)
@@ -827,7 +847,9 @@ def build_seller_requirements(params: BuildSellerRequirementsInput) -> dict[str,
                 net,
                 exc,
             )
-            requirements.append(_local_exact_requirement(params, net, pay_to, description))
+            requirements.append(_local_exact_requirement(params, net, net_pay_to, description))
+
+    requirements = rank_payment_requirements(requirements)
 
     # Bazaar discoverability: with a resource_url the challenge carries
     # ResourceInfo, and (unless opted out) the bazaar discovery extension —
@@ -1238,7 +1260,9 @@ async def build_payment_required_for_resource(
     if not pay:
         raise ValueError("X402_PAY_TO_ADDRESS required for seller demo resource")
 
-    net = network or settings.x402_default_network
+    from app.payment_options import advertised_networks_csv
+
+    net = network or advertised_networks_csv()
     prc = price or settings.x402_default_price
     desc = description or "Paid demo resource"
 

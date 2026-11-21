@@ -97,6 +97,12 @@ async def _execute_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
 
     if name in STOCKSMAXXING_TOOL_NAMES:
         return await execute_stocksmaxxing_tool(name, arguments)
+
+    if name == "payment_option_usage":
+        from app.payment_option_usage import get_usage_report
+
+        return {"success": True, "data": await get_usage_report()}
+
     raise ValueError(f"Unhandled tool: {name}")
 
 

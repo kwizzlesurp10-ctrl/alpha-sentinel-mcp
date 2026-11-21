@@ -13,7 +13,11 @@ from app.application import app
 from app.stocksmaxxing.registry import STOCKSMAXXING_TOOL_NAMES
 from app.tools_registry import EXPECTED_TOOL_NAMES
 
-LANDING_PAGE_TOOL_NAMES = [t for t in EXPECTED_TOOL_NAMES if t not in STOCKSMAXXING_TOOL_NAMES]
+LANDING_PAGE_TOOL_NAMES = [
+    t
+    for t in EXPECTED_TOOL_NAMES
+    if t not in STOCKSMAXXING_TOOL_NAMES and t != "payment_option_usage"
+]
 
 
 @pytest_asyncio.fixture

@@ -284,6 +284,20 @@ async def playbook_article(playbook: str):
 
 
 
+@api.get("/x402/payment-options/usage")
+async def payment_option_usage_http():
+    """Free read-only counts for multi-rail x402 payment options."""
+    from app.payment_option_usage import get_usage_report
+    from app.payment_options import catalog_for_docs
+
+    report = await get_usage_report()
+    return {
+        "success": True,
+        "usage": report,
+        "catalog": catalog_for_docs(),
+    }
+
+
 @api.get("/health")
 async def health_check():
     from app.redis_client import ping as redis_ping

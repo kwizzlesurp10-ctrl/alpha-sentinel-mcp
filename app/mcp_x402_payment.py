@@ -9,6 +9,8 @@ from typing import Any
 
 from app import x402_services
 from app.config import settings
+from app.payment_option_usage import record_payment_option_usage_from_verify_ctx
+from app.payment_options import advertised_networks_csv
 from app.payments import TOOL_PRICES
 from app.tool_payment_gate import (
     _tool_discovery_example,
@@ -83,7 +85,7 @@ def build_tool_payment_bundle(tool_name: str) -> tuple[list[Any], Any, dict[str,
     if not pay_to:
         raise ValueError("X402_PAY_TO_ADDRESS required for MCP paid tools")
 
-    network = x402_services.resolve_revenue_network()
+    network = advertised_networks_csv()
     price = TOOL_PRICES.get(tool_name, settings.x402_default_price)
     spec = get_tool_spec(tool_name) or {}
     description = x402_services._clamp_description(
@@ -130,12 +132,14 @@ def payment_required_structured_content(
     tool_name: str,
 ) -> dict[str, Any]:
     accepts, resource, extensions = build_tool_payment_bundle(tool_name)
-    req = accepts[0]
-    accept_dump = req.model_dump(by_alias=True, exclude_none=True) if hasattr(req, "model_dump") else dict(req)
+    accept_rows = [
+        r.model_dump(by_alias=True, exclude_none=True) if hasattr(r, "model_dump") else dict(r)
+        for r in accepts
+    ]
     return {
         "x402Version": 2,
         "error": f"Payment required for {tool_name}",
-        "accepts": [accept_dump],
+        "accepts": accept_rows,
         "resource": resource.model_dump(by_alias=True, exclude_none=True)
         if hasattr(resource, "model_dump")
         else dict(resource),
@@ -286,6 +290,8 @@ async def execute_paid_mcp_tool(
     if not await complete_payment_attempt("mcp", tool_name, begin.fingerprint, settlement):
         await release_payment_attempt("mcp", tool_name, begin.fingerprint)
         return _payment_error("settlement_tx_replay", error="replay_rejected")
+
+    await record_payment_option_usage_from_verify_ctx(verified)
 
     tool_result["_meta"] = {
         **(tool_result.get("_meta") or {}),
